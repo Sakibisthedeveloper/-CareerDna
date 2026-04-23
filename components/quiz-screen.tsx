@@ -236,14 +236,15 @@ export function QuizScreen() {
             })}
           </div>
 
+          {/* Navigation Button - Sticky on mobile */}
           <div
-            className={`mt-8 flex justify-center transition-all duration-300 ${selectedOption ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-4 opacity-0"
+            className={`fixed bottom-0 left-0 right-0 z-20 flex justify-center p-6 backdrop-blur-xl border-t border-border/40 bg-background/80 transition-all duration-300 sm:relative sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none sm:mt-12 ${selectedOption ? "translate-y-0 opacity-100" : "translate-y-full opacity-0 sm:translate-y-4"
               }`}
           >
             <button
               onClick={handleNext}
               disabled={!selectedOption || isTransitioning}
-              className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-gradient-to-r from-[oklch(0.65_0.25_300)] to-[oklch(0.72_0.19_55)] px-8 py-4 text-base font-bold text-primary-foreground shadow-[0_0_32px_oklch(0.65_0.25_300/0.3)] transition-all duration-300 hover:shadow-[0_0_48px_oklch(0.65_0.25_300/0.5)] hover:scale-[1.03] disabled:opacity-50 disabled:hover:scale-100"
+              className="group relative inline-flex w-full items-center justify-center gap-2 overflow-hidden rounded-full bg-gradient-to-r from-[oklch(0.65_0.25_300)] to-[oklch(0.72_0.19_55)] px-8 py-4 text-base font-bold text-primary-foreground shadow-[0_0_32px_oklch(0.65_0.25_300/0.3)] transition-all duration-300 hover:shadow-[0_0_48px_oklch(0.65_0.25_300/0.5)] hover:scale-[1.03] disabled:opacity-50 disabled:hover:scale-100 sm:w-auto"
             >
               <span className="absolute inset-0 bg-gradient-to-r from-[oklch(0.72_0.19_55)] to-[oklch(0.65_0.25_300)] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
               <span className="relative z-10 flex items-center gap-2">

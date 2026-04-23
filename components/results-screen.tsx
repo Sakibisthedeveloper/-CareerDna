@@ -1,7 +1,8 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import Link from "next/link"
+import html2canvas from "html2canvas"
 import {
   Dna,
   RotateCcw,
@@ -13,7 +14,9 @@ import {
   User,
   Mail,
   Loader2,
+  Download,
 } from "lucide-react"
+import { toast } from "sonner"
 import { CircularProgress } from "@/components/circular-progress"
 import { Confetti } from "@/components/confetti"
 import { careers, Career } from "@/lib/career-data"
@@ -21,11 +24,13 @@ import { PersonalityType } from "@/lib/quiz-data"
 import { createClient } from "@/utils/supabase/client"
 
 export function ResultsScreen() {
+  const resultsRef = useRef<HTMLDivElement>(null)
   const [mounted, setMounted] = useState(false)
   const [localData, setLocalData] = useState<any>(null)
   const [showConfetti, setShowConfetti] = useState(true)
   const [revealed, setRevealed] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [isDownloading, setIsDownloading] = useState(false)
   const [primaryMatch, setPrimaryMatch] = useState<Career | null>(null)
   const [altMatches, setAltMatches] = useState<Career[]>([])
   const [name, setName] = useState("")
@@ -84,15 +89,49 @@ export function ResultsScreen() {
     } else {
       navigator.clipboard.writeText(text).then(() => {
         setCopied(true)
+        toast.success("Link copied to clipboard!")
         setTimeout(() => setCopied(false), 2000)
       })
+    }
+  }
+
+  async function handleDownload() {
+    if (!resultsRef.current || isDownloading) return
+    setIsDownloading(true)
+    const downloadToast = toast.loading("Preparing your CareerDNA certificate...")
+
+    try {
+      // Add a class for screenshot styling if needed
+      resultsRef.current.classList.add('screenshot-mode')
+
+      const canvas = await html2canvas(resultsRef.current, {
+        backgroundColor: '#1a1030', // Match theme background
+        scale: 2, // High quality
+        logging: false,
+        useCORS: true,
+      })
+
+      resultsRef.current.classList.remove('screenshot-mode')
+
+      const image = canvas.toDataURL("image/png")
+      const link = document.createElement("a")
+      link.href = image
+      link.download = `CareerDNA-${userName.replace(/\s+/g, '-')}.png`
+      link.click()
+
+      toast.success("Downloaded successfully!", { id: downloadToast })
+    } catch (err) {
+      console.error("Download failed:", err)
+      toast.error("Download failed. Please try again.", { id: downloadToast })
+    } finally {
+      setIsDownloading(false)
     }
   }
 
   if (!primaryMatch) return null
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground" ref={resultsRef}>
       {showConfetti && <Confetti />}
 
       {/* Sticky header */}
@@ -110,10 +149,14 @@ export function ResultsScreen() {
             </span>
           </Link>
           <div className="flex gap-2">
-            <div className="hidden sm:flex items-center gap-2 rounded-full border border-[oklch(0.65_0.25_300/0.3)] bg-[oklch(0.65_0.25_300/0.1)] px-4 py-2 text-sm font-medium text-[oklch(0.65_0.25_300)]">
-              <CheckCircle2 className="h-4 w-4" />
-              Saved to Cloud
-            </div>
+            <button
+              onClick={handleDownload}
+              disabled={isDownloading}
+              className="flex items-center gap-2 rounded-full border border-border/60 bg-secondary/50 px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-50"
+            >
+              {isDownloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              <span className="hidden sm:inline">Download</span>
+            </button>
             <Link
               href="/quiz"
               className="flex items-center gap-2 rounded-full border border-border/60 bg-secondary/50 px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
