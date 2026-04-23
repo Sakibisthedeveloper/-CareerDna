@@ -1,3 +1,5 @@
+"use client"
+
 import { Dna } from "lucide-react"
 
 export default function Loading() {
