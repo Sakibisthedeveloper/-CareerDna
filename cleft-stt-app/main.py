@@ -8,7 +8,7 @@ from flask import Flask, request, jsonify, render_template
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
-from google.api_core.exceptions import GoogleAPIError
+from google.genai import errors
 
 def get_mime_type(filename):
     """Map common audio extensions to standard MIME types to prevent detection issues on Windows."""
@@ -396,7 +396,7 @@ def transcribe():
             "audio_id": history_filename
         })
 
-    except GoogleAPIError as gae:
+    except errors.APIError as gae:
         logger.error(f"Google Generative AI API Error: {gae}")
         return jsonify({"error": f"Gemini API Error: {str(gae)}"}), 502
     except Exception as e:
