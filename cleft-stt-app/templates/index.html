@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resonate - Cleft Speech-to-Text Calibration</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0a19;
+            --card-bg: rgba(20, 18, 38, 0.65);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --primary-grad: linear-gradient(135deg, #6366f1, #8b5cf6);
+            --record-grad: linear-gradient(135deg, #ef4444, #ec4899);
+            --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.15) 0%, transparent 40%);
+        }
+
+        .container {
+            width: 100%;
+            max-width: 580px;
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 40px 30px;
+            box-shadow: var(--shadow);
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        header {
+            margin-bottom: 35px;
+        }
+
+        h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2.2rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            background: linear-gradient(to right, #a5b4fc, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        p.subtitle {
+            color: var(--text-secondary);
+            font-size: 1rem;
+            line-height: 1.5;
+        }
+
+        /* Calibration Badge */
+        .calibration-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(99, 102, 241, 0.1);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            padding: 6px 16px;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            color: #a5b4fc;
+            font-weight: 500;
+            margin-bottom: 30px;
+        }
+
+        .calibration-status .dot {
+            width: 8px;
+            height: 8px;
+            background-color: #34d399;
+            border-radius: 50%;
+            box-shadow: 0 0 8px #34d399;
+        }
+
+        .calibration-status .dot.inactive {
+            background-color: #f87171;
+            box-shadow: 0 0 8px #f87171;
+        }
+
+        /* Record Button Area */
+        .recorder-section {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 40px;
+        }
+
+        .record-btn-container {
+            position: relative;
+            width: 140px;
+            height: 140px;
+            margin-bottom: 20px;
+        }
+
+        .pulse-ring {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: var(--record-grad);
+            opacity: 0;
+            z-index: 1;
+            transition: all 0.3s ease;
+        }
+
+        .recording .pulse-ring {
+            animation: pulse 1.8s infinite;
+        }
+
+        .record-btn {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: none;
+            background: var(--primary-grad);
+            cursor: pointer;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 24px rgba(99, 102, 241, 0.4);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            outline: none;
+        }
+
+        .record-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 12px 28px rgba(99, 102, 241, 0.5);
+        }
+
+        .record-btn:active {
+            transform: scale(0.95);
+        }
+
+        .recording .record-btn {
+            background: var(--record-grad);
+            box-shadow: 0 8px 24px rgba(239, 68, 68, 0.4);
+        }
+
+        .record-btn svg {
+            width: 48px;
+            height: 48px;
+            fill: var(--text-primary);
+            transition: all 0.3s ease;
+        }
+
+        .recording .record-btn svg {
+            transform: scale(0.8);
+        }
+
+        .status-text {
+            font-size: 1.05rem;
+            color: var(--text-primary);
+            font-weight: 500;
+            margin-top: 10px;
+            height: 24px;
+        }
+
+        /* Audio Waveform Canvas */
+        .visualizer-container {
+            width: 100%;
+            height: 50px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .recording .visualizer-container {
+            display: block;
+        }
+
+        #visualizer {
+            width: 100%;
+            height: 100%;
+            border-radius: 8px;
+        }
+
+        /* Transcription Result Box */
+        .result-section {
+            display: none;
+            text-align: left;
+            margin-top: 30px;
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .result-title {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 600;
+        }
+
+        .copy-btn {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid var(--border-color);
+            padding: 6px 14px;
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .copy-btn:hover {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .copy-btn svg {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+        }
+
+        .result-box {
+            background: rgba(10, 9, 21, 0.5);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 20px;
+            font-size: 1.15rem;
+            line-height: 1.6;
+            color: var(--text-primary);
+            min-height: 80px;
+            word-break: break-word;
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            display: none;
+            width: 40px;
+            height: 40px;
+            border: 3.5px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border-top-color: #8b5cf6;
+            animation: spin 1s ease-in-out infinite;
+            margin: 20px auto;
+        }
+
+        /* Error/Info Alert Box */
+        .alert-box {
+            display: none;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+            padding: 14px 20px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            text-align: left;
+            margin-top: 25px;
+            line-height: 1.5;
+        }
+
+        .alert-box.info {
+            background: rgba(59, 130, 246, 0.1);
+            border-color: rgba(59, 130, 246, 0.2);
+            color: #93c5fd;
+        }
+
+        /* Animations */
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                opacity: 0.5;
+            }
+            100% {
+                transform: scale(1.35);
+                opacity: 0;
+            }
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Calibration Panel Accordion */
+        .calibration-panel {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            margin-top: 30px;
+            overflow: hidden;
+            text-align: left;
+            transition: all 0.3s ease;
+        }
+
+        .panel-toggle {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.02);
+            border: none;
+            padding: 16px 20px;
+            color: var(--text-primary);
+            font-size: 1rem;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            outline: none;
+            font-family: 'Outfit', sans-serif;
+            transition: background 0.2s ease;
+        }
+
+        .panel-toggle:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .panel-toggle svg {
+            width: 20px;
+            height: 20px;
+            fill: var(--text-secondary);
+            transition: transform 0.3s ease;
+        }
+
+        .calibration-panel.open svg {
+            transform: rotate(180deg);
+        }
+
+        .panel-content {
+            display: none;
+            padding: 20px;
+            border-top: 1px solid var(--border-color);
+            background: rgba(10, 9, 21, 0.2);
+        }
+
+        .calibration-panel.open .panel-content {
+            display: block;
+        }
+
+        .panel-desc {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            line-height: 1.5;
+            margin-bottom: 15px;
+        }
+
+        .phrase-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .phrase-item {
+            background: rgba(10, 9, 21, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            border-radius: 10px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            transition: all 0.2s ease;
+        }
+
+        .phrase-item:hover {
+            border-color: rgba(99, 102, 241, 0.2);
+            background: rgba(99, 102, 241, 0.03);
+        }
+
+        .phrase-info {
+            flex-grow: 1;
+        }
+
+        .phrase-num {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 2px;
+            font-weight: 600;
+        }
+
+        .phrase-text {
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .phrase-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .status-badge.active {
+            background: rgba(52, 211, 153, 0.1);
+            color: #34d399;
+        }
+
+        .calib-rec-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .calib-rec-btn:hover {
+            background: rgba(99, 102, 241, 0.1);
+            border-color: rgba(99, 102, 241, 0.3);
+        }
+
+        .calib-rec-btn.recording-calib {
+            background: var(--record-grad);
+            border-color: transparent;
+            animation: pulse-border 1.5s infinite;
+        }
+
+        @keyframes pulse-border {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+            70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+
+        footer {
+            margin-top: 40px;
+            font-size: 0.8rem;
+            color: rgba(148, 163, 184, 0.5);
+            text-align: center;
+        }
+
+        footer a {
+            color: rgba(148, 163, 184, 0.7);
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            color: #a5b4fc;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>Resonate</h1>
+            <p class="subtitle">Custom Speech-to-Text for Cleft Palate Speech Correction</p>
+        </header>
+
+        <!-- Calibration Status -->
+        <div class="calibration-status" id="calibration-status">
+            <span class="dot" id="calibration-dot"></span>
+            <span id="calibration-text">Calibration status loading...</span>
+        </div>
+
+        <!-- Main Recorder Area -->
+        <div class="recorder-section" id="recorder-section">
+            <div class="record-btn-container" id="record-btn-container">
+                <div class="pulse-ring"></div>
+                <button class="record-btn" id="record-btn" aria-label="Record Voice">
+                    <!-- Mic Icon -->
+                    <svg id="mic-icon" viewBox="0 0 24 24">
+                        <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                        <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+                    </svg>
+                    <!-- Stop Icon (hidden initially) -->
+                    <svg id="stop-icon" viewBox="0 0 24 24" style="display:none;">
+                        <path d="M6 19h12V5H6v14z"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="status-text" id="status-text">Tap the button to start recording</div>
+
+            <!-- Waveform Visualizer -->
+            <div class="visualizer-container">
+                <canvas id="visualizer"></canvas>
+            </div>
+        </div>
+
+        <!-- Loader Spinner -->
+        <div class="spinner" id="loading-spinner"></div>
+
+        <!-- Result Box -->
+        <div class="result-section" id="result-section">
+            <div class="result-header">
+                <span class="result-title">Transcription</span>
+                <div style="display:flex; gap:8px;">
+                    <button class="copy-btn" id="edit-btn">
+                        <svg viewBox="0 0 24 24" style="width:14px; height:14px; fill:currentColor;">
+                            <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                        </svg>
+                        <span id="edit-btn-text">Correct</span>
+                    </button>
+                    <button class="copy-btn" id="copy-btn">
+                        <svg viewBox="0 0 24 24" style="width:14px; height:14px; fill:currentColor;">
+                            <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+                        </svg>
+                        <span id="copy-btn-text">Copy</span>
+                    </button>
+                </div>
+            </div>
+            <div class="result-box" id="result-box"></div>
+            
+            <!-- Editable Correction Box -->
+            <div class="correction-container" id="correction-container" style="display:none; margin-top:12px;">
+                <textarea id="correction-input" style="width:100%; min-height:80px; font-family:inherit; background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:12px; color:var(--text-primary); resize:vertical; outline:none; font-size:0.95rem; line-height:1.5;" placeholder="Type the correct transcription here..."></textarea>
+                <button class="calib-rec-btn" id="save-correction-btn" style="margin-top:10px; width:100%; justify-content:center; background:linear-gradient(135deg, #6366f1 0%, #a855f7 100%); padding:10px; border-radius:8px; font-weight:600; border:none; color:white;">
+                    Save Correction & Train Model
+                </button>
+            </div>
+        </div>
+
+        <!-- Alert Notification Box -->
+        <div class="alert-box" id="alert-box"></div>
+
+        <!-- Calibration & Training Panel -->
+        <div class="calibration-panel" id="calibration-panel">
+            <button class="panel-toggle" id="panel-toggle">
+                <span>Model Training & Calibration</span>
+                <svg viewBox="0 0 24 24" id="toggle-arrow">
+                    <path d="M7 10l5 5 5-5z"/>
+                </svg>
+            </button>
+            <div class="panel-content" id="panel-content">
+                <p class="panel-desc">Record the phrases below to train the model on your unique cleft palate speech pattern. Fully calibrated few-shot learning dramatically boosts transcription accuracy.</p>
+                <div class="phrase-list" id="phrase-list">
+                    <!-- Loaded dynamically via JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        Resonate Assistant &bull; Powered by Gemini 1.5 Flash
+    </footer>
+
+    <script>
+        // DOM Elements
+        const recordBtnContainer = document.getElementById('record-btn-container');
+        const recordBtn = document.getElementById('record-btn');
+        const micIcon = document.getElementById('mic-icon');
+        const stopIcon = document.getElementById('stop-icon');
+        const statusText = document.getElementById('status-text');
+        const resultSection = document.getElementById('result-section');
+        const resultBox = document.getElementById('result-box');
+        const copyBtn = document.getElementById('copy-btn');
+        const copyBtnText = document.getElementById('copy-btn-text');
+        const loadingSpinner = document.getElementById('loading-spinner');
+        const alertBox = document.getElementById('alert-box');
+        const calibrationStatus = document.getElementById('calibration-status');
+        const calibrationDot = document.getElementById('calibration-dot');
+        const calibrationText = document.getElementById('calibration-text');
+        const visualizer = document.getElementById('visualizer');
+        const canvasCtx = visualizer.getContext('2d');
+        
+        // Calibration UI Elements
+        const calibPanel = document.getElementById('calibration-panel');
+        const panelToggle = document.getElementById('panel-toggle');
+        const phraseList = document.getElementById('phrase-list');
+
+        // Correction Feedback UI Elements
+        const editBtn = document.getElementById('edit-btn');
+        const editBtnText = document.getElementById('edit-btn-text');
+        const correctionContainer = document.getElementById('correction-container');
+        const correctionInput = document.getElementById('correction-input');
+        const saveCorrectionBtn = document.getElementById('save-correction-btn');
+        
+        let lastTranscribedAudioId = null;
+
+        // Recording State Variables
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let isRecording = false;
+        let audioCtx = null;
+        let analyser = null;
+        let dataArray = null;
+        let source = null;
+        let animationFrameId = null;
+
+        // Calibration Recording State Variables
+        let calibRecorder = null;
+        let calibChunks = [];
+        let activeCalibFilename = null;
+        let activeCalibBtn = null;
+        let calibrationDataFiles = {};
+
+        // Accordion Toggle
+        panelToggle.addEventListener('click', () => {
+            calibPanel.classList.toggle('open');
+        });
+
+        // Check Calibration Map status on startup
+        async function checkCalibration() {
+            try {
+                const response = await fetch('/calibration-status', {
+                    headers: {
+                        'ngrok-skip-browser-warning': 'true'
+                    }
+                });
+                
+                if (!response.ok) {
+                    let errText = `Server returned status ${response.status}`;
+                    try {
+                        const errData = await response.json();
+                        errText = errData.error || errText;
+                    } catch(e) {}
+                    throw new Error(errText);
+                }
+
+                const data = await response.json();
+                
+                // Update top badge
+                if (data.status === 'calibrated') {
+                    calibrationDot.className = 'dot';
+                    calibrationDot.style.background = '#34d399';
+                    calibrationDot.style.boxShadow = '0 0 8px #34d399';
+                    calibrationText.textContent = `Calibrated (${data.count} audio templates loaded)`;
+                    hideAlert();
+                } else if (data.status === 'partially_calibrated') {
+                    calibrationDot.className = 'dot';
+                    calibrationDot.style.background = '#f59e0b';
+                    calibrationDot.style.boxShadow = '0 0 8px #f59e0b';
+                    calibrationText.textContent = `Partial calibration (${data.count}/${data.total} templates loaded)`;
+                    showAlert("Your model is partially trained. Record the remaining sentences in the panel below for full calibration.", "info");
+                } else {
+                    calibrationDot.className = 'dot inactive';
+                    calibrationDot.style.background = '#f87171';
+                    calibrationDot.style.boxShadow = '0 0 8px #f87171';
+                    calibrationText.textContent = 'Uncalibrated (No training templates loaded)';
+                    showAlert("Your model is uncalibrated. Expand the 'Model Training & Calibration' panel below to record your voice templates.", "info");
+                }
+
+                // Render individual phrase cards
+                phraseList.innerHTML = '';
+                calibrationDataFiles = data.files || {};
+                
+                Object.keys(calibrationDataFiles).forEach((filename, index) => {
+                    const fileInfo = calibrationDataFiles[filename];
+                    const phraseItem = document.createElement('div');
+                    phraseItem.className = 'phrase-item';
+                    
+                    const badgeClass = fileInfo.exists ? 'status-badge active' : 'status-badge';
+                    const badgeText = fileInfo.exists ? '✓' : '✗';
+                    const recBtnText = fileInfo.exists ? 'Re-record' : 'Record';
+                    
+                    phraseItem.innerHTML = `
+                        <div class="phrase-info">
+                            <div class="phrase-num">Phrase ${index + 1} (${filename})</div>
+                            <div class="phrase-text">"${fileInfo.script}"</div>
+                        </div>
+                        <div class="phrase-actions">
+                            <span class="${badgeClass}">${badgeText}</span>
+                            <button class="calib-rec-btn" data-filename="${filename}" onclick="toggleCalibRecord(this)">
+                                <svg viewBox="0 0 24 24" style="width:14px; height:14px; fill:currentColor;">
+                                    <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                                    <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+                                </svg>
+                                <span>${recBtnText}</span>
+                            </button>
+                        </div>
+                    `;
+                    phraseList.appendChild(phraseItem);
+                });
+
+            } catch (error) {
+                console.error("Error checking calibration status:", error);
+                calibrationDot.className = 'dot inactive';
+                calibrationText.textContent = 'Calibration status offline';
+            }
+        }
+
+        // Calibration Recording Flow
+        async function toggleCalibRecord(btn) {
+            const filename = btn.getAttribute('data-filename');
+            
+            // If recording this specific item, stop it
+            if (activeCalibFilename === filename) {
+                stopCalibRecord();
+                return;
+            }
+            
+            // If recording a different item, stop it first
+            if (activeCalibFilename !== null) {
+                stopCalibRecord();
+                // Wait briefly for recorder cleanup
+                await new Promise(resolve => setTimeout(resolve, 200));
+            }
+            
+            // Start recording
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                calibChunks = [];
+                
+                let options = { mimeType: 'audio/webm' };
+                if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                    options = { mimeType: 'audio/ogg' };
+                }
+                if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                    options = { mimeType: '' };
+                }
+                
+                calibRecorder = new MediaRecorder(stream, options);
+                calibRecorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) {
+                        calibChunks.push(e.data);
+                    }
+                };
+                
+                calibRecorder.onstop = async () => {
+                    const audioBlob = new Blob(calibChunks, { type: calibRecorder.mimeType || 'audio/webm' });
+                    stream.getTracks().forEach(track => track.stop());
+                    await uploadCalibrationAudio(audioBlob, filename);
+                };
+                
+                activeCalibFilename = filename;
+                activeCalibBtn = btn;
+                
+                btn.classList.add('recording-calib');
+                btn.querySelector('span').textContent = 'Stop';
+                
+                calibRecorder.start(250);
+            } catch (err) {
+                console.error("Error accessing microphone for calibration:", err);
+                showAlert("Could not access microphone. Ensure permissions are granted.");
+            }
+        }
+
+        function stopCalibRecord() {
+            if (calibRecorder && calibRecorder.state !== 'inactive') {
+                calibRecorder.stop();
+            }
+            if (activeCalibBtn) {
+                activeCalibBtn.classList.remove('recording-calib');
+                // Re-evaluate what label to set
+                const exists = calibrationDataFiles[activeCalibFilename] && calibrationDataFiles[activeCalibFilename].exists;
+                activeCalibBtn.querySelector('span').textContent = exists ? 'Re-record' : 'Record';
+            }
+            activeCalibFilename = null;
+            activeCalibBtn = null;
+        }
+
+        async function uploadCalibrationAudio(audioBlob, filename) {
+            loadingSpinner.style.display = 'block';
+            statusText.textContent = `Uploading calibration file (${filename})...`;
+            
+            const formData = new FormData();
+            formData.append('audio', audioBlob, 'calib.webm');
+            formData.append('filename', filename);
+            
+            try {
+                const response = await fetch('/upload-calibration', {
+                    method: 'POST',
+                    headers: {
+                        'ngrok-skip-browser-warning': 'true'
+                    },
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    let errText = `Upload failed with status ${response.status}`;
+                    try {
+                        const errData = await response.json();
+                        errText = errData.error || errText;
+                    } catch(e) {}
+                    throw new Error(errText);
+                }
+                
+                const data = await response.json();
+                statusText.textContent = `Calibration phrase updated successfully!`;
+                // Refresh checklist and status
+                await checkCalibration();
+            } catch (error) {
+                console.error("Error uploading calibration audio:", error);
+                showAlert(error.message || "Could not connect to the backend server to upload calibration.");
+                statusText.textContent = 'Calibration upload failed';
+            } finally {
+                loadingSpinner.style.display = 'none';
+            }
+        }
+
+        // Initialize Calibration check
+        window.addEventListener('DOMContentLoaded', checkCalibration);
+
+        // Utility to show alert/warning box
+        function showAlert(message, type = "error") {
+            alertBox.textContent = message;
+            alertBox.style.display = 'block';
+            if (type === "info") {
+                alertBox.className = "alert-box info";
+            } else {
+                alertBox.className = "alert-box";
+            }
+        }
+
+        function hideAlert() {
+            alertBox.style.display = 'none';
+        }
+
+        // Setup Audio visualizer
+        function setupVisualizer(stream) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioCtx.createAnalyser();
+            source = audioCtx.createMediaStreamSource(stream);
+            source.connect(analyser);
+            
+            analyser.fftSize = 256;
+            const bufferLength = analyser.frequencyBinCount;
+            dataArray = new Uint8Array(bufferLength);
+
+            // Resize canvas context size
+            const resizeCanvas = () => {
+                visualizer.width = visualizer.offsetWidth;
+                visualizer.height = visualizer.offsetHeight;
+            };
+            resizeCanvas();
+
+            function draw() {
+                if (!isRecording) return;
+                
+                animationFrameId = requestAnimationFrame(draw);
+                analyser.getByteFrequencyData(dataArray);
+
+                canvasCtx.fillStyle = '#0b0a19';
+                canvasCtx.fillRect(0, 0, visualizer.width, visualizer.height);
+
+                const barWidth = (visualizer.width / bufferLength) * 2.5;
+                let barHeight;
+                let x = 0;
+
+                for (let i = 0; i < bufferLength; i++) {
+                    barHeight = dataArray[i] / 2;
+
+                    // Gradient for equalizer lines
+                    const gradient = canvasCtx.createLinearGradient(0, visualizer.height, 0, 0);
+                    gradient.addColorStop(0, '#6366f1');
+                    gradient.addColorStop(1, '#ec4899');
+                    
+                    canvasCtx.fillStyle = gradient;
+                    canvasCtx.fillRect(x, visualizer.height - barHeight, barWidth - 2, barHeight);
+
+                    x += barWidth;
+                }
+            }
+            draw();
+        }
+
+        // Start Recording
+        async function startRecording() {
+            hideAlert();
+            audioChunks = [];
+
+            // Secure Context check
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                showAlert("Microphone access is only allowed in secure contexts (localhost or HTTPS). If accessing this app from a mobile browser on your local network, check the instructions to enable insecure origin flags.");
+                return;
+            }
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                // Select MIME Type compatible with browsers
+                let options = { mimeType: 'audio/webm' };
+                if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                    options = { mimeType: 'audio/ogg' };
+                }
+                if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                    options = { mimeType: '' }; // Fallback to browser default
+                }
+
+                mediaRecorder = new MediaRecorder(stream, options);
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                    }
+                };
+
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+                    // Clean up Stream tracks
+                    stream.getTracks().forEach(track => track.stop());
+                    
+                    // Send blob to backend
+                    await sendAudioToBackend(audioBlob);
+                };
+
+                // Setup visualizer & change DOM state
+                isRecording = true;
+                recordBtnContainer.classList.add('recording');
+                micIcon.style.display = 'none';
+                stopIcon.style.display = 'block';
+                statusText.textContent = 'Recording... Tap to stop';
+                resultSection.style.display = 'none';
+
+                mediaRecorder.start(250); // Slice data every 250ms
+                setupVisualizer(stream);
+
+            } catch (err) {
+                console.error("Microphone access error:", err);
+                showAlert("Could not access your microphone. Please ensure permissions are granted.");
+            }
+        }
+
+        // Stop Recording
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+            isRecording = false;
+            recordBtnContainer.classList.remove('recording');
+            micIcon.style.display = 'block';
+            stopIcon.style.display = 'none';
+            statusText.textContent = 'Processing speech...';
+            
+            if (audioCtx) {
+                audioCtx.close();
+            }
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+            }
+        }
+
+        // Toggle record state click handler
+        recordBtn.addEventListener('click', () => {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                startRecording();
+            }
+        });
+
+        // Send Audio Payload to Flask Backend
+        async function sendAudioToBackend(audioBlob) {
+            loadingSpinner.style.display = 'block';
+            statusText.textContent = 'Transcribing using Gemini...';
+            
+            const formData = new FormData();
+            
+            // Determine file extension
+            let extension = 'webm';
+            if (audioBlob.type.includes('ogg')) extension = 'ogg';
+            if (audioBlob.type.includes('wav')) extension = 'wav';
+            if (audioBlob.type.includes('mp4')) extension = 'mp4';
+            
+            formData.append('audio', audioBlob, `speech.${extension}`);
+
+            try {
+                const response = await fetch('/transcribe', {
+                    method: 'POST',
+                    headers: {
+                        'ngrok-skip-browser-warning': 'true'
+                    },
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    let errText = `Transcription failed with status ${response.status}`;
+                    try {
+                        const errData = await response.json();
+                        errText = errData.error || errText;
+                    } catch(e) {}
+                    throw new Error(errText);
+                }
+
+                const data = await response.json();
+                resultBox.textContent = data.transcription;
+                lastTranscribedAudioId = data.audio_id;
+                resultSection.style.display = 'block';
+                statusText.textContent = 'Transcription complete!';
+                
+                // Reset correction UI state
+                correctionContainer.style.display = 'none';
+                editBtnText.textContent = 'Correct';
+                editBtn.style.background = 'rgba(255, 255, 255, 0.06)';
+                editBtn.style.color = 'var(--text-primary)';
+            } catch (error) {
+                console.error("Fetch error:", error);
+                showAlert(error.message || "Could not connect to the transcription backend server.");
+                statusText.textContent = 'Connection error';
+            } finally {
+                loadingSpinner.style.display = 'none';
+            }
+        }
+
+        // Toggle correction edit box
+        editBtn.addEventListener('click', () => {
+            if (correctionContainer.style.display === 'none') {
+                correctionContainer.style.display = 'block';
+                correctionInput.value = resultBox.textContent;
+                editBtnText.textContent = 'Cancel';
+                editBtn.style.background = 'rgba(239, 68, 68, 0.15)';
+                editBtn.style.color = '#ef4444';
+                correctionInput.focus();
+            } else {
+                correctionContainer.style.display = 'none';
+                editBtnText.textContent = 'Correct';
+                editBtn.style.background = 'rgba(255, 255, 255, 0.06)';
+                editBtn.style.color = 'var(--text-primary)';
+            }
+        });
+
+        // Submit corrected transcript to Flask backend
+        saveCorrectionBtn.addEventListener('click', async () => {
+            const correctedText = correctionInput.value.trim();
+            if (!correctedText) {
+                alert("Please type a valid correction.");
+                return;
+            }
+            if (!lastTranscribedAudioId) {
+                alert("No active transcription session to correct.");
+                return;
+            }
+
+            loadingSpinner.style.display = 'block';
+            statusText.textContent = 'Training Gemini model...';
+            saveCorrectionBtn.disabled = true;
+
+            try {
+                const response = await fetch('/save-correction', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'ngrok-skip-browser-warning': 'true'
+                    },
+                    body: JSON.stringify({
+                        audio_id: lastTranscribedAudioId,
+                        corrected_text: correctedText
+                    })
+                });
+
+                if (!response.ok) {
+                    let errText = `Correction save failed with status ${response.status}`;
+                    try {
+                        const errData = await response.json();
+                        errText = errData.error || errText;
+                    } catch(e) {}
+                    throw new Error(errText);
+                }
+
+                const data = await response.json();
+                // Update main transcription display
+                resultBox.textContent = correctedText;
+                correctionContainer.style.display = 'none';
+                editBtnText.textContent = 'Correct';
+                editBtn.style.background = 'rgba(255, 255, 255, 0.06)';
+                editBtn.style.color = 'var(--text-primary)';
+                
+                statusText.textContent = 'AI model updated successfully!';
+                showAlert("Training complete! The model has saved your correction and will apply this learning to future transcriptions.", "info");
+            } catch (error) {
+                console.error("Save correction error:", error);
+                showAlert(error.message || "Could not connect to the backend server to save correction.");
+                statusText.textContent = 'Connection error';
+            } finally {
+                loadingSpinner.style.display = 'none';
+                saveCorrectionBtn.disabled = false;
+            }
+        });
+
+        // Copy to clipboard feature
+        copyBtn.addEventListener('click', () => {
+            const textToCopy = resultBox.textContent;
+            if (!textToCopy) return;
+
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                copyBtnText.textContent = 'Copied!';
+                copyBtn.style.background = 'rgba(52, 211, 153, 0.15)';
+                copyBtn.style.color = '#34d399';
+                
+                setTimeout(() => {
+                    copyBtnText.textContent = 'Copy';
+                    copyBtn.style.background = 'rgba(255, 255, 255, 0.06)';
+                    copyBtn.style.color = 'var(--text-primary)';
+                }, 2000);
+            }).catch(err => {
+                console.error("Clipboard copy failed:", err);
+            });
+        });
+    </script>
+</body>
+</html>
