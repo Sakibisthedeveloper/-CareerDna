@@ -10,14 +10,19 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #0b0a19;
-            --card-bg: rgba(20, 18, 38, 0.65);
-            --border-color: rgba(255, 255, 255, 0.08);
+            --bg-color: #121824;
+            --card-bg: rgba(25, 30, 41, 0.6);
+            --border-color: rgba(255, 255, 255, 0.07);
             --text-primary: #f8fafc;
             --text-secondary: #94a3b8;
+            --text-muted: #64748b;
             --primary-grad: linear-gradient(135deg, #6366f1, #8b5cf6);
-            --record-grad: linear-gradient(135deg, #ef4444, #ec4899);
-            --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            --record-grad: linear-gradient(135deg, #ef4444, #f43f5e);
+            --success-color: #10B981;
+            --success-bg: rgba(16, 185, 129, 0.15);
+            --success-border: rgba(16, 185, 129, 0.3);
+            --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+            --pulse-color: rgba(239, 68, 68, 0.4);
         }
 
         * {
@@ -35,55 +40,55 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 20px;
+            padding: 24px;
             overflow-x: hidden;
             background-image: 
-                radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 40%),
-                radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.15) 0%, transparent 40%);
+                radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.08) 0%, transparent 45%),
+                radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.08) 0%, transparent 45%);
         }
 
         .container {
             width: 100%;
-            max-width: 580px;
+            max-width: 680px;
             background: var(--card-bg);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
             border: 1px solid var(--border-color);
             border-radius: 24px;
-            padding: 40px 30px;
-            box-shadow: var(--shadow);
+            padding: 40px 32px;
+            box-shadow: var(--shadow-lg);
             text-align: center;
-            transition: all 0.3s ease;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         header {
-            margin-bottom: 35px;
+            margin-bottom: 30px;
         }
 
         h1 {
             font-family: 'Outfit', sans-serif;
-            font-size: 2.2rem;
+            font-size: 2.4rem;
             font-weight: 800;
             letter-spacing: -0.03em;
-            background: linear-gradient(to right, #a5b4fc, #c084fc);
+            background: linear-gradient(to right, #a5b4fc, #e9d5ff);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }
 
         p.subtitle {
             color: var(--text-secondary);
-            font-size: 1rem;
+            font-size: 0.95rem;
             line-height: 1.5;
         }
 
-        /* Calibration Badge */
+        /* Calibration Status Badge */
         .calibration-status {
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            background: rgba(99, 102, 241, 0.1);
-            border: 1px solid rgba(99, 102, 241, 0.2);
+            background: rgba(99, 102, 241, 0.08);
+            border: 1px solid rgba(99, 102, 241, 0.15);
             padding: 6px 16px;
             border-radius: 50px;
             font-size: 0.85rem;
@@ -95,14 +100,14 @@
         .calibration-status .dot {
             width: 8px;
             height: 8px;
-            background-color: #34d399;
+            background-color: #10B981;
             border-radius: 50%;
-            box-shadow: 0 0 8px #34d399;
+            box-shadow: 0 0 8px #10B981;
         }
 
         .calibration-status .dot.inactive {
-            background-color: #f87171;
-            box-shadow: 0 0 8px #f87171;
+            background-color: #ef4444;
+            box-shadow: 0 0 8px #ef4444;
         }
 
         /* Record Button Area */
@@ -112,7 +117,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            margin-bottom: 40px;
+            margin-bottom: 30px;
         }
 
         .record-btn-container {
@@ -120,29 +125,44 @@
             width: 140px;
             height: 140px;
             margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .pulse-ring {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            width: 120px;
+            height: 120px;
             border-radius: 50%;
-            background: var(--record-grad);
+            background: transparent;
+            border: 2px solid #EF4444;
             opacity: 0;
+            pointer-events: none;
             z-index: 1;
-            transition: all 0.3s ease;
         }
 
-        .recording .pulse-ring {
-            animation: pulse 1.8s infinite;
+        .recording .ring-1 {
+            animation: pulse-ring-anim 1.8s cubic-bezier(0.215, 0.610, 0.355, 1) infinite;
+        }
+
+        .recording .ring-2 {
+            animation: pulse-ring-anim 1.8s cubic-bezier(0.215, 0.610, 0.355, 1) infinite;
+            animation-delay: 0.6s;
+        }
+
+        @keyframes pulse-ring-anim {
+            0% {
+                transform: scale(0.95);
+                opacity: 0.8;
+            }
+            100% {
+                transform: scale(1.45);
+                opacity: 0;
+            }
         }
 
         .record-btn {
-            position: absolute;
-            top: 10px;
-            left: 10px;
             width: 120px;
             height: 120px;
             border-radius: 50%;
@@ -153,14 +173,14 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 8px 24px rgba(99, 102, 241, 0.4);
+            box-shadow: 0 8px 32px rgba(99, 102, 241, 0.3);
             transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             outline: none;
         }
 
         .record-btn:hover {
             transform: scale(1.05);
-            box-shadow: 0 12px 28px rgba(99, 102, 241, 0.5);
+            box-shadow: 0 12px 36px rgba(99, 102, 241, 0.5);
         }
 
         .record-btn:active {
@@ -169,7 +189,7 @@
 
         .recording .record-btn {
             background: var(--record-grad);
-            box-shadow: 0 8px 24px rgba(239, 68, 68, 0.4);
+            box-shadow: 0 8px 32px rgba(239, 68, 68, 0.4);
         }
 
         .record-btn svg {
@@ -180,22 +200,23 @@
         }
 
         .recording .record-btn svg {
-            transform: scale(0.8);
+            transform: scale(0.85);
         }
 
         .status-text {
-            font-size: 1.05rem;
-            color: var(--text-primary);
+            font-size: 1rem;
+            color: var(--text-secondary);
             font-weight: 500;
             margin-top: 10px;
-            height: 24px;
+            min-height: 24px;
+            transition: color 0.2s ease;
         }
 
         /* Audio Waveform Canvas */
         .visualizer-container {
             width: 100%;
-            height: 50px;
-            margin-top: 15px;
+            height: 60px;
+            margin-top: 20px;
             display: none;
         }
 
@@ -206,39 +227,109 @@
         #visualizer {
             width: 100%;
             height: 100%;
-            border-radius: 8px;
+            border-radius: 12px;
         }
 
-        /* Transcription Result Box */
+        /* Lightweight CSS Audio Wave Spinner */
+        .wave-spinner {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            height: 50px;
+            margin: 25px auto;
+        }
+
+        .wave-bar {
+            width: 5px;
+            height: 35px;
+            background: linear-gradient(180deg, #6366f1, #a855f7);
+            border-radius: 3px;
+            animation: wave-anim 1.2s ease-in-out infinite;
+        }
+
+        .wave-bar:nth-child(1) { animation-delay: 0.1s; }
+        .wave-bar:nth-child(2) { animation-delay: 0.2s; }
+        .wave-bar:nth-child(3) { animation-delay: 0.3s; }
+        .wave-bar:nth-child(4) { animation-delay: 0.4s; }
+        .wave-bar:nth-child(5) { animation-delay: 0.5s; }
+
+        @keyframes wave-anim {
+            0%, 100% {
+                transform: scaleY(0.3);
+            }
+            50% {
+                transform: scaleY(1.0);
+            }
+        }
+
+        /* Result Section & Text Grid */
         .result-section {
             display: none;
-            text-align: left;
             margin-top: 30px;
-            animation: fadeIn 0.4s ease-out forwards;
+            animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
 
-        .result-header {
+        .text-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            text-align: left;
+            margin-bottom: 20px;
+        }
+
+        .panel-card {
+            background: rgba(18, 24, 36, 0.4);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .panel-card.raw-panel {
+            background: rgba(18, 24, 36, 0.25);
+        }
+
+        .panel-card.final-panel {
+            border-color: rgba(99, 102, 241, 0.15);
+            background: rgba(99, 102, 241, 0.02);
+        }
+
+        .panel-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 12px;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.02);
+            border-bottom: 1px solid var(--border-color);
         }
 
-        .result-title {
-            font-size: 0.95rem;
-            color: var(--text-secondary);
+        .panel-tag {
+            font-size: 0.75rem;
+            font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            font-weight: 600;
+            color: var(--text-secondary);
         }
 
-        .copy-btn {
-            background: rgba(255, 255, 255, 0.06);
+        .panel-tag.accent {
+            color: #a5b4fc;
+        }
+
+        .panel-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .action-btn {
+            background: rgba(255, 255, 255, 0.04);
             border: 1px solid var(--border-color);
-            padding: 6px 14px;
+            padding: 6px 12px;
             border-radius: 8px;
             color: var(--text-primary);
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             font-weight: 500;
             cursor: pointer;
             display: flex;
@@ -247,39 +338,46 @@
             transition: all 0.2s ease;
         }
 
-        .copy-btn:hover {
-            background: rgba(255, 255, 255, 0.12);
-            border-color: rgba(255, 255, 255, 0.2);
+        .action-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.15);
         }
 
-        .copy-btn svg {
-            width: 16px;
-            height: 16px;
+        .action-btn svg {
+            width: 14px;
+            height: 14px;
             fill: currentColor;
         }
 
-        .result-box {
-            background: rgba(10, 9, 21, 0.5);
+        /* Clipboard Copy success transitions */
+        .action-btn.copy-success {
+            background: var(--success-bg) !important;
+            border-color: var(--success-border) !important;
+            color: var(--success-color) !important;
+        }
+
+        .panel-content-box {
+            padding: 20px;
+            font-size: 1.05rem;
+            line-height: 1.6;
+            min-height: 100px;
+            word-break: break-word;
+            color: var(--text-primary);
+        }
+
+        .raw-panel .panel-content-box {
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
+        /* Correction Box style */
+        .correction-container {
+            background: rgba(18, 24, 36, 0.4);
             border: 1px solid var(--border-color);
             border-radius: 16px;
             padding: 20px;
-            font-size: 1.15rem;
-            line-height: 1.6;
-            color: var(--text-primary);
-            min-height: 80px;
-            word-break: break-word;
-        }
-
-        /* Loading Spinner */
-        .spinner {
-            display: none;
-            width: 40px;
-            height: 40px;
-            border: 3.5px solid rgba(255, 255, 255, 0.1);
-            border-radius: 50%;
-            border-top-color: #8b5cf6;
-            animation: spin 1s ease-in-out infinite;
-            margin: 20px auto;
+            margin-top: 15px;
+            text-align: left;
         }
 
         /* Error/Info Alert Box */
@@ -297,37 +395,21 @@
         }
 
         .alert-box.info {
-            background: rgba(59, 130, 246, 0.1);
-            border-color: rgba(59, 130, 246, 0.2);
-            color: #93c5fd;
-        }
-
-        /* Animations */
-        @keyframes pulse {
-            0% {
-                transform: scale(1);
-                opacity: 0.5;
-            }
-            100% {
-                transform: scale(1.35);
-                opacity: 0;
-            }
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
+            background: rgba(99, 102, 241, 0.08);
+            border-color: rgba(99, 102, 241, 0.2);
+            color: #a5b4fc;
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
+            from { opacity: 0; transform: translateY(12px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* Calibration Panel Accordion */
+        /* Calibration Accordion Panel */
         .calibration-panel {
-            background: rgba(255, 255, 255, 0.02);
+            background: rgba(25, 30, 41, 0.3);
             border: 1px solid var(--border-color);
-            border-radius: 16px;
+            border-radius: 18px;
             margin-top: 30px;
             overflow: hidden;
             text-align: left;
@@ -336,11 +418,11 @@
 
         .panel-toggle {
             width: 100%;
-            background: rgba(255, 255, 255, 0.02);
+            background: transparent;
             border: none;
-            padding: 16px 20px;
+            padding: 18px 24px;
             color: var(--text-primary);
-            font-size: 1rem;
+            font-size: 1.05rem;
             font-weight: 600;
             display: flex;
             justify-content: space-between;
@@ -348,11 +430,10 @@
             cursor: pointer;
             outline: none;
             font-family: 'Outfit', sans-serif;
-            transition: background 0.2s ease;
         }
 
         .panel-toggle:hover {
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(255, 255, 255, 0.02);
         }
 
         .panel-toggle svg {
@@ -368,9 +449,9 @@
 
         .panel-content {
             display: none;
-            padding: 20px;
+            padding: 24px;
             border-top: 1px solid var(--border-color);
-            background: rgba(10, 9, 21, 0.2);
+            background: rgba(18, 24, 36, 0.3);
         }
 
         .calibration-panel.open .panel-content {
@@ -379,31 +460,31 @@
 
         .panel-desc {
             color: var(--text-secondary);
-            font-size: 0.85rem;
+            font-size: 0.88rem;
             line-height: 1.5;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }
 
         .phrase-list {
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 12px;
         }
 
         .phrase-item {
-            background: rgba(10, 9, 21, 0.4);
-            border: 1px solid rgba(255, 255, 255, 0.03);
-            border-radius: 10px;
-            padding: 12px 16px;
+            background: rgba(18, 24, 36, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.02);
+            border-radius: 12px;
+            padding: 16px 20px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 12px;
+            gap: 16px;
             transition: all 0.2s ease;
         }
 
         .phrase-item:hover {
-            border-color: rgba(99, 102, 241, 0.2);
+            border-color: rgba(99, 102, 241, 0.25);
             background: rgba(99, 102, 241, 0.03);
         }
 
@@ -412,16 +493,16 @@
         }
 
         .phrase-num {
-            font-size: 0.7rem;
-            color: var(--text-secondary);
+            font-size: 0.72rem;
+            color: var(--text-muted);
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            margin-bottom: 2px;
+            margin-bottom: 4px;
             font-weight: 600;
         }
 
         .phrase-text {
-            font-size: 0.9rem;
+            font-size: 0.92rem;
             font-weight: 500;
             color: var(--text-primary);
         }
@@ -429,7 +510,7 @@
         .phrase-actions {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 12px;
         }
 
         .status-badge {
@@ -446,22 +527,24 @@
         }
 
         .status-badge.active {
-            background: rgba(52, 211, 153, 0.1);
-            color: #34d399;
+            background: rgba(16, 185, 129, 0.1);
+            color: #10B981;
         }
 
         .calib-rec-btn {
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid var(--border-color);
             color: var(--text-primary);
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 0.75rem;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.8rem;
             font-weight: 500;
             cursor: pointer;
-            display: flex;
+            display: inline-flex;
             align-items: center;
-            gap: 4px;
+            justify-content: center;
+            gap: 6px;
+            white-space: nowrap;
             transition: all 0.2s ease;
         }
 
@@ -485,17 +568,67 @@
         footer {
             margin-top: 40px;
             font-size: 0.8rem;
-            color: rgba(148, 163, 184, 0.5);
+            color: var(--text-muted);
             text-align: center;
         }
 
         footer a {
-            color: rgba(148, 163, 184, 0.7);
+            color: var(--text-secondary);
             text-decoration: none;
         }
 
         footer a:hover {
             color: #a5b4fc;
+        }
+
+        /* Mobile Optimization and Touch Targets */
+        @media (max-width: 640px) {
+            body {
+                padding: 12px;
+            }
+            .container {
+                padding: 24px 16px;
+                border-radius: 20px;
+            }
+            h1 {
+                font-size: 1.8rem;
+            }
+            .record-btn-container {
+                width: 120px;
+                height: 120px;
+            }
+            .record-btn {
+                width: 100px;
+                height: 100px;
+            }
+            .pulse-ring {
+                width: 100px;
+                height: 100px;
+            }
+            .text-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+            .phrase-item {
+                flex-direction: column;
+                align-items: stretch;
+                padding: 16px;
+                gap: 12px;
+            }
+            .phrase-actions {
+                justify-content: space-between;
+            }
+            .calib-rec-btn {
+                flex-grow: 1;
+                padding: 10px;
+                font-size: 0.85rem;
+                min-height: 44px; /* comfortable thumb target */
+            }
+            .action-btn {
+                min-height: 44px;
+                padding: 8px 16px;
+                font-size: 0.85rem;
+            }
         }
     </style>
 </head>
@@ -516,7 +649,8 @@
         <!-- Main Recorder Area -->
         <div class="recorder-section" id="recorder-section">
             <div class="record-btn-container" id="record-btn-container">
-                <div class="pulse-ring"></div>
+                <div class="pulse-ring ring-1"></div>
+                <div class="pulse-ring ring-2"></div>
                 <button class="record-btn" id="record-btn" aria-label="Record Voice">
                     <!-- Mic Icon -->
                     <svg id="mic-icon" viewBox="0 0 24 24">
@@ -537,34 +671,56 @@
             </div>
         </div>
 
-        <!-- Loader Spinner -->
-        <div class="spinner" id="loading-spinner"></div>
+        <!-- Wave Spinner Loader -->
+        <div class="wave-spinner" id="loading-spinner">
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+        </div>
 
         <!-- Result Box -->
         <div class="result-section" id="result-section">
-            <div class="result-header">
-                <span class="result-title">Transcription</span>
-                <div style="display:flex; gap:8px;">
-                    <button class="copy-btn" id="edit-btn">
-                        <svg viewBox="0 0 24 24" style="width:14px; height:14px; fill:currentColor;">
-                            <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
-                        </svg>
-                        <span id="edit-btn-text">Correct</span>
-                    </button>
-                    <button class="copy-btn" id="copy-btn">
-                        <svg viewBox="0 0 24 24" style="width:14px; height:14px; fill:currentColor;">
-                            <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-                        </svg>
-                        <span id="copy-btn-text">Copy</span>
-                    </button>
+            <div class="text-grid">
+                <!-- Raw Phonetic Panel -->
+                <div class="panel-card raw-panel">
+                    <div class="panel-header">
+                        <span class="panel-tag">Raw Phonetics</span>
+                    </div>
+                    <div class="panel-content-box" id="raw-result-box">Waiting for speech...</div>
+                </div>
+
+                <!-- Finalized Gemini Panel -->
+                <div class="panel-card final-panel">
+                    <div class="panel-header">
+                        <span class="panel-tag accent">Finalized Text</span>
+                        <div class="panel-actions">
+                            <button class="action-btn" id="edit-btn">
+                                <svg viewBox="0 0 24 24">
+                                    <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                                </svg>
+                                <span id="edit-btn-text">Correct</span>
+                            </button>
+                            <button class="action-btn" id="copy-btn">
+                                <svg class="copy-icon" viewBox="0 0 24 24">
+                                    <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+                                </svg>
+                                <svg class="check-icon" viewBox="0 0 24 24" style="display: none; fill: currentColor;">
+                                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                                </svg>
+                                <span id="copy-btn-text">Copy Text</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="panel-content-box" id="result-box">Waiting for speech...</div>
                 </div>
             </div>
-            <div class="result-box" id="result-box"></div>
             
             <!-- Editable Correction Box -->
-            <div class="correction-container" id="correction-container" style="display:none; margin-top:12px;">
-                <textarea id="correction-input" style="width:100%; min-height:80px; font-family:inherit; background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:12px; color:var(--text-primary); resize:vertical; outline:none; font-size:0.95rem; line-height:1.5;" placeholder="Type the correct transcription here..."></textarea>
-                <button class="calib-rec-btn" id="save-correction-btn" style="margin-top:10px; width:100%; justify-content:center; background:linear-gradient(135deg, #6366f1 0%, #a855f7 100%); padding:10px; border-radius:8px; font-weight:600; border:none; color:white;">
+            <div class="correction-container" id="correction-container" style="display:none;">
+                <textarea id="correction-input" style="width:100%; min-height:100px; font-family:inherit; background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:16px; color:var(--text-primary); resize:vertical; outline:none; font-size:0.95rem; line-height:1.5;" placeholder="Type the correct transcription here..."></textarea>
+                <button class="calib-rec-btn" id="save-correction-btn" style="margin-top:12px; width:100%; justify-content:center; background:linear-gradient(135deg, #6366f1 0%, #a855f7 100%); padding:12px; border-radius:10px; font-weight:600; border:none; color:white; font-size:0.9rem;">
                     Save Correction & Train Model
                 </button>
             </div>
@@ -603,6 +759,7 @@
         const statusText = document.getElementById('status-text');
         const resultSection = document.getElementById('result-section');
         const resultBox = document.getElementById('result-box');
+        const rawResultBox = document.getElementById('raw-result-box');
         const copyBtn = document.getElementById('copy-btn');
         const copyBtnText = document.getElementById('copy-btn-text');
         const loadingSpinner = document.getElementById('loading-spinner');
@@ -800,7 +957,7 @@
         }
 
         async function uploadCalibrationAudio(audioBlob, filename) {
-            loadingSpinner.style.display = 'block';
+            loadingSpinner.style.display = 'flex';
             statusText.textContent = `Uploading calibration file (${filename})...`;
             
             const formData = new FormData();
@@ -880,8 +1037,7 @@
                 animationFrameId = requestAnimationFrame(draw);
                 analyser.getByteFrequencyData(dataArray);
 
-                canvasCtx.fillStyle = '#0b0a19';
-                canvasCtx.fillRect(0, 0, visualizer.width, visualizer.height);
+                canvasCtx.clearRect(0, 0, visualizer.width, visualizer.height);
 
                 const barWidth = (visualizer.width / bufferLength) * 2.5;
                 let barHeight;
@@ -951,6 +1107,7 @@
                 stopIcon.style.display = 'block';
                 statusText.textContent = 'Recording... Tap to stop';
                 resultSection.style.display = 'none';
+                rawResultBox.textContent = 'Waiting for speech...';
 
                 mediaRecorder.start(250); // Slice data every 250ms
                 setupVisualizer(stream);
@@ -991,7 +1148,8 @@
 
         // Send Audio Payload to Flask Backend
         async function sendAudioToBackend(audioBlob) {
-            loadingSpinner.style.display = 'block';
+            recordBtnContainer.style.display = 'none';
+            loadingSpinner.style.display = 'flex';
             statusText.textContent = 'Transcribing using Gemini...';
             
             const formData = new FormData();
@@ -1023,6 +1181,7 @@
                 }
 
                 const data = await response.json();
+                rawResultBox.textContent = data.raw_transcription || "No raw phonetics captured.";
                 resultBox.textContent = data.transcription;
                 lastTranscribedAudioId = data.audio_id;
                 resultSection.style.display = 'block';
@@ -1031,14 +1190,15 @@
                 // Reset correction UI state
                 correctionContainer.style.display = 'none';
                 editBtnText.textContent = 'Correct';
-                editBtn.style.background = 'rgba(255, 255, 255, 0.06)';
-                editBtn.style.color = 'var(--text-primary)';
+                editBtn.style.background = '';
+                editBtn.style.color = '';
             } catch (error) {
                 console.error("Fetch error:", error);
                 showAlert(error.message || "Could not connect to the transcription backend server.");
                 statusText.textContent = 'Connection error';
             } finally {
                 loadingSpinner.style.display = 'none';
+                recordBtnContainer.style.display = 'flex';
             }
         }
 
@@ -1049,13 +1209,15 @@
                 correctionInput.value = resultBox.textContent;
                 editBtnText.textContent = 'Cancel';
                 editBtn.style.background = 'rgba(239, 68, 68, 0.15)';
+                editBtn.style.borderColor = 'rgba(239, 68, 68, 0.3)';
                 editBtn.style.color = '#ef4444';
                 correctionInput.focus();
             } else {
                 correctionContainer.style.display = 'none';
                 editBtnText.textContent = 'Correct';
-                editBtn.style.background = 'rgba(255, 255, 255, 0.06)';
-                editBtn.style.color = 'var(--text-primary)';
+                editBtn.style.background = '';
+                editBtn.style.borderColor = '';
+                editBtn.style.color = '';
             }
         });
 
@@ -1071,7 +1233,7 @@
                 return;
             }
 
-            loadingSpinner.style.display = 'block';
+            loadingSpinner.style.display = 'flex';
             statusText.textContent = 'Training Gemini model...';
             saveCorrectionBtn.disabled = true;
 
@@ -1102,8 +1264,8 @@
                 resultBox.textContent = correctedText;
                 correctionContainer.style.display = 'none';
                 editBtnText.textContent = 'Correct';
-                editBtn.style.background = 'rgba(255, 255, 255, 0.06)';
-                editBtn.style.color = 'var(--text-primary)';
+                editBtn.style.background = '';
+                editBtn.style.color = '';
                 
                 statusText.textContent = 'AI model updated successfully!';
                 showAlert("Training complete! The model has saved your correction and will apply this learning to future transcriptions.", "info");
@@ -1123,14 +1285,16 @@
             if (!textToCopy) return;
 
             navigator.clipboard.writeText(textToCopy).then(() => {
+                copyBtn.classList.add('copy-success');
                 copyBtnText.textContent = 'Copied!';
-                copyBtn.style.background = 'rgba(52, 211, 153, 0.15)';
-                copyBtn.style.color = '#34d399';
+                copyBtn.querySelector('.copy-icon').style.display = 'none';
+                copyBtn.querySelector('.check-icon').style.display = 'inline-block';
                 
                 setTimeout(() => {
-                    copyBtnText.textContent = 'Copy';
-                    copyBtn.style.background = 'rgba(255, 255, 255, 0.06)';
-                    copyBtn.style.color = 'var(--text-primary)';
+                    copyBtn.classList.remove('copy-success');
+                    copyBtnText.textContent = 'Copy Text';
+                    copyBtn.querySelector('.copy-icon').style.display = 'inline-block';
+                    copyBtn.querySelector('.check-icon').style.display = 'none';
                 }, 2000);
             }).catch(err => {
                 console.error("Clipboard copy failed:", err);
