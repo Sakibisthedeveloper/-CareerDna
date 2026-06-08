@@ -7,9 +7,8 @@ import itertools
 import requests
 from flask import Flask, request, jsonify, render_template
 from dotenv import load_dotenv
-from google import genai
-from google.genai import types
-from google.genai import errors
+import google.generativeai as genai
+from google.api_core.exceptions import GoogleAPIError
 from supabase import create_client, Client
 
 # Configure logging
@@ -59,33 +58,7 @@ if not keys_pool:
 valid_keys = [k for k in keys_pool if k]
 api_rotator = itertools.cycle(valid_keys)
 
-current_key = None
-
-def configure_api(api_key):
-    global current_key
-    current_key = api_key
-
-genai.configure = configure_api
-
-class GenerativeModelAdapter:
-    def __init__(self, model_name):
-        self.model_name = 'gemini-1.5-flash'  # Forced model selection
-        
-    def generate_content(self, contents, config=None, **kwargs):
-        global current_key
-        client = genai.Client(api_key=current_key)
-        return client.models.generate_content(model=self.model_name, contents=contents, config=config)
-
-genai.GenerativeModel = GenerativeModelAdapter
 client_lock = threading.Lock()
-
-def get_next_client():
-    """Get the Google GenAI client configured with the current key."""
-    global current_key
-    if not current_key:
-        with client_lock:
-            current_key = next(api_rotator)
-    return genai.Client(api_key=current_key)
 
 # --- SUPABASE CONFIGURATION ---
 SUPABASE_URL = (
@@ -386,26 +359,21 @@ def upload_calibration():
         logger.error(f"Error saving calibration file {filename}: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
-def generate_content_with_backoff(model, contents, config=None):
+def generate_content_with_backoff(model, contents, generation_config=None):
     """
     Generate content with explicit, bounded try-except loop.
     If a 500, 501, 502, 503, 504, or 506 status error is caught,
     wait exactly 2 seconds and retry the call. Allow up to 3 automated retries.
     """
-    # Hardcode the Model Selection: Force gemini-1.5-flash across all steps
-    forced_model = 'gemini-1.5-flash'
     max_retries = 3
+    current_model = model
     for attempt in range(max_retries + 1):
-        client = get_next_client()
-        if not client:
-            raise Exception("Google GenAI Client is not configured on the server.")
-        
         try:
-            logger.info(f"Calling Gemini API (model={forced_model}, attempt={attempt + 1}/{max_retries + 1})...")
-            if config:
-                return client.models.generate_content(model=forced_model, contents=contents, config=config)
+            logger.info(f"Calling Gemini API (model=gemini-1.5-flash, attempt={attempt + 1}/{max_retries + 1})...")
+            if generation_config:
+                return current_model.generate_content(contents, generation_config=generation_config)
             else:
-                return client.models.generate_content(model=forced_model, contents=contents)
+                return current_model.generate_content(contents)
         except Exception as e:
             # Check if this is one of the target status codes
             code = getattr(e, 'code', None) or getattr(e, 'status_code', None)
@@ -424,10 +392,18 @@ def generate_content_with_backoff(model, contents, config=None):
             if is_target_error:
                 if attempt < max_retries:
                     logger.warning(f"Gemini API returned 5xx status error: {e}. Waiting exactly 2 seconds before retry {attempt + 1}...")
-                    global current_key
-                    with client_lock:
-                        current_key = next(api_rotator)
-                        genai.configure(api_key=current_key)
+                    
+                    # Retrieve the next key dynamically from our cycle pool
+                    active_key = next(api_rotator)
+                    
+                    # Re-configure the global SDK pointer immediately before execution
+                    import google.generativeai as genai
+                    genai.configure(api_key=active_key)
+                    
+                    # Hardcode the generation target explicitly at the instantiation point
+                    sys_inst = getattr(current_model, '_system_instruction', None)
+                    current_model = genai.GenerativeModel('gemini-1.5-flash', system_instruction=sys_inst)
+                    
                     time.sleep(2)
                     continue
                 else:
@@ -473,13 +449,20 @@ def transcribe():
             "No conversational filler, no introductory text."
         )
 
-        current_key = next(api_rotator)
-        genai.configure(api_key=current_key)
+        # Retrieve the next key dynamically from our cycle pool
+        active_key = next(api_rotator)
+        
+        # Re-configure the global SDK pointer immediately before execution
+        import google.generativeai as genai
+        genai.configure(api_key=active_key)
+        
+        # Hardcode the generation target explicitly at the instantiation point
+        model = genai.GenerativeModel('gemini-1.5-flash')
 
         stt_response = generate_content_with_backoff(
-            model='gemini-1.5-flash',
+            model=model,
             contents=[
-                types.Part.from_bytes(data=audio_bytes, mime_type=mime_type),
+                {'mime_type': mime_type, 'data': audio_bytes},
                 stt_prompt
             ]
         )
@@ -528,16 +511,20 @@ CORRECTED TEXT:
 """
 
         # Generate corrected text
-        current_key = next(api_rotator)
-        genai.configure(api_key=current_key)
+        # Retrieve the next key dynamically from our cycle pool
+        active_key = next(api_rotator)
+        
+        # Re-configure the global SDK pointer immediately before execution
+        import google.generativeai as genai
+        genai.configure(api_key=active_key)
+        
+        # Hardcode the generation target explicitly at the instantiation point
+        model = genai.GenerativeModel('gemini-1.5-flash', system_instruction=system_instruction)
 
         correction_response = generate_content_with_backoff(
-            model='gemini-1.5-flash',
+            model=model,
             contents=prompt_content,
-            config=types.GenerateContentConfig(
-                system_instruction=system_instruction,
-                temperature=0.0
-            )
+            generation_config={'temperature': 0.0}
         )
         transcription = correction_response.text.strip()
         logger.info(f"Step B Corrected transcription: '{transcription}'")
@@ -551,7 +538,7 @@ CORRECTED TEXT:
             "audio_id": history_filename
         })
 
-    except errors.APIError as gae:
+    except GoogleAPIError as gae:
         logger.error(f"Google Generative AI API Error: {gae}")
         return jsonify({"error": f"Gemini API Error: {str(gae)}"}), 502
     except Exception as e:
