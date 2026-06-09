@@ -27,15 +27,11 @@ else:
 # Helper functions to obtain isolated clients dynamically
 def get_gemini_client():
     """Dynamically initializes and returns a legacy GenerativeModel with the 3rd key exclusively."""
-    api_key = os.environ.get("GEMINI_API_KEY_3")
+    api_key = os.environ.get("GEMINI_API_KEY_3") or os.environ.get("GOOGLE_AI_API_KEY")
     if not api_key:
-        logger.warning("GEMINI_API_KEY_3 not found in environment. Falling back to GOOGLE_AI_API_KEY.")
-        api_key = os.environ.get("GOOGLE_AI_API_KEY")
-    if not api_key:
-        logger.critical("No Gemini API key available for the learning agent.")
         raise ValueError("Missing Gemini API key.")
     genai.configure(api_key=api_key)
-    return genai.GenerativeModel('gemini-2.5-flash')
+    return genai.GenerativeModel('gemini-1.5-flash')
 
 def get_supabase_client():
     """Dynamically initializes and returns a Supabase client to avoid module-level global variables."""
@@ -155,8 +151,6 @@ Rules:
     
     try:
         model = get_gemini_client()
-        # Set system instruction dynamically on model
-        model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=system_instruction)
         response = model.generate_content(
             prompt,
             generation_config={'temperature': 0.0}
