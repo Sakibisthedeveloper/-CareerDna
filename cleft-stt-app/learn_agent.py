@@ -107,52 +107,32 @@ def save_or_append_rules(new_rules_text):
         logger.info("No new unique rules discovered in this cycle.")
 
 def compile_linguistic_rules(rows):
-    """Analyze discrepancies and discover cleft palate phonetic translation rules using Gemini 2.5 Flash."""
-    # Filter for rows with discrepancies
-    comparison_pairs = []
-    for row in rows:
-        raw = row.get("raw_transcript", "").strip()
-        corrected = row.get("corrected_text", "").strip()
-        if raw and corrected and raw != corrected:
-            comparison_pairs.append((raw, corrected))
-            
-    if not comparison_pairs:
-        logger.info("No discrepancies between raw and corrected text found in the last 24 hours.")
-        return
-    
-    logger.info(f"Analyzing {len(comparison_pairs)} discrepancy pairs using Gemini 2.5 Flash...")
-    
-    pairs_str = "\n".join([f"Raw phonetic: \"{raw}\" -> Corrected intent: \"{corrected}\"" for raw, corrected in comparison_pairs])
-    
-    system_instruction = (
-        "You are an expert linguistic analysis compiler specializing in cleft palate speech pathology and speech-to-text calibration.\n"
-        "Your task is to compare the discrepancies between raw speech inputs (which have phonetic distortions) and successfully corrected intended texts.\n"
-        "Systematically discover repeated phonetic errors caused by the speaker's cleft palate and output clean, standard dictionary rules matching this exact syntax:\n"
-        "- If sound is [X] -> translates to: [Y]\n"
-        "Where [X] is the distorted/mispronounced sound or word, and [Y] is the intended translated word/phrase.\n"
-        "Return ONLY these rules, one per line. Do not include any intro, explanation, markdown formatting, or preamble."
-    )
-    
-    prompt = f"""
-Compare the discrepancies in the following speech history entries and compile phonetic translation rules:
+    """Compile raw transcripts and corrections into clean phonetic rules."""
+    prompt = f"Analyze these speech patterns and extract correction rules:\n{rows}"
+    system_instruction = "You are a speech pathology compiler. Output rules strictly matching format: - If sound is [X] -> translates to: [Y]"
 
-{pairs_str}
-
-Rules:
-"""
-    
     try:
-        model = get_gemini_client()
+        # Obtain client initialized with the 3rd key
+        api_key = os.environ.get("GEMINI_API_KEY_3") or os.environ.get("GOOGLE_AI_API_KEY")
+        if not api_key:
+            raise ValueError("Missing Gemini API key.")
+        genai.configure(api_key=api_key)
+
+        # Instantiate model with the correct system instruction layout
+        model = genai.GenerativeModel('gemini-1.5-flash', system_instruction=system_instruction)
+
+        # Execute content generation and properly close the call parameters
         response = model.generate_content(
             prompt,
             generation_config={'temperature': 0.0}
         )
+
         rules_text = response.text.strip()
         if rules_text:
-            logger.info("Gemini 2.5 Flash successfully generated rules.")
             save_or_append_rules(rules_text)
         else:
-            logger.warning("Gemini 2.5 Flash returned an empty response.")
+            logger.warning("Gemini returned an empty response.")
+
     except Exception as e:
         print(f"CRITICAL ERROR [Gemini API Request]: {str(e)}")
         logger.error(f"Error calling Gemini API for linguistic compilation: {e}")
