@@ -364,13 +364,13 @@ def generate_content_with_backoff(model, contents, generation_config=None):
     max_retries = 3
     for attempt in range(max_retries + 1):
         try:
-            logger.info(f"Calling Gemini API (model=gemini-1.5-flash, attempt={attempt + 1}/{max_retries + 1})...")
+            logger.info(f"Calling Gemini API (model=gemini-2.5-flash, attempt={attempt + 1}/{max_retries + 1})...")
             
             with client_lock:
                 active_key = next(api_rotator)
                 genai.configure(api_key=active_key)
                 sys_inst = getattr(model, '_system_instruction', None)
-                model = genai.GenerativeModel('gemini-1.5-flash', system_instruction=sys_inst)
+                model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=sys_inst)
                 
                 # Make the content call using the legacy syntax:
                 if generation_config:
@@ -445,7 +445,7 @@ def transcribe():
         )
 
         # Instantiate model first using the legacy SDK layout
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-2.5-flash')
         contents = [{'mime_type': mime_type, 'data': audio_bytes}, stt_prompt]
         stt_response = generate_content_with_backoff(
             model=model,
@@ -509,7 +509,7 @@ CORRECTED TEXT:
 """
 
         # Instantiate model first using the legacy SDK layout
-        model = genai.GenerativeModel('gemini-1.5-flash', system_instruction=system_instruction)
+        model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=system_instruction)
         
         # Generate corrected text
         correction_response = generate_content_with_backoff(

@@ -164,7 +164,7 @@ def compile_linguistic_rules(rows):
 
 def run_loop(poll_interval_seconds=300):
     """Continuous background learning agent loop."""
-    logger.info(f"Starting background learning loop (polling every {poll_interval_seconds}s)...")
+    logger.info("Starting background learning loop (polling every {poll_interval_seconds}s)...")
     while True:
         try:
             rows = fetch_recent_history()
