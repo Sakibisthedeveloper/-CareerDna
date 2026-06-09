@@ -24,9 +24,7 @@ if os.path.exists(env_local_path):
 else:
     load_dotenv()
 
-# Helper functions to obtain isolated clients dynamically
 def get_gemini_client():
-    """Dynamically initializes and returns a legacy GenerativeModel with the 3rd key exclusively."""
     api_key = os.environ.get("GEMINI_API_KEY_3") or os.environ.get("GOOGLE_AI_API_KEY")
     if not api_key:
         raise ValueError("Missing Gemini API key.")
@@ -34,13 +32,8 @@ def get_gemini_client():
     return genai.GenerativeModel('gemini-1.5-flash')
 
 def get_supabase_client():
-    """Dynamically initializes and returns a Supabase client to avoid module-level global variables."""
     url = os.environ.get("SUPABASE_URL") or os.environ.get("NEXT_PUBLIC_SUPABASE_URL")
-    key = (
-        os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or
-        os.environ.get("SUPABASE_KEY") or
-        os.environ.get("NEXT_PUBLIC_SUPABASE_ANON_KEY")
-    )
+    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY") or os.environ.get("NEXT_PUBLIC_SUPABASE_ANON_KEY")
     if not url or not key:
         logger.warning("Supabase credentials not fully configured.")
         return None
@@ -48,7 +41,6 @@ def get_supabase_client():
         return create_client(url, key)
     except Exception as e:
         print(f"CRITICAL ERROR [Supabase Init]: {str(e)}")
-        logger.error(f"Failed to initialize Supabase client: {e}")
         return None
 
 def fetch_recent_history():
