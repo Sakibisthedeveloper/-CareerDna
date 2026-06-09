@@ -4,8 +4,7 @@ import json
 import logging
 from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
-from google import genai
-from google.genai import types
+import google.generativeai as genai
 from supabase import create_client, Client
 
 # Configure logging
@@ -25,39 +24,40 @@ if os.path.exists(env_local_path):
 else:
     load_dotenv()
 
-# Execute exclusively via 3rd Gemini API key
-api_key = os.environ.get("GEMINI_API_KEY_3")
-if not api_key:
-    logger.warning("GEMINI_API_KEY_3 not found in environment. Falling back to GOOGLE_AI_API_KEY.")
-    api_key = os.environ.get("GOOGLE_AI_API_KEY")
+# Helper functions to obtain isolated clients dynamically
+def get_gemini_client():
+    """Dynamically initializes and returns a legacy GenerativeModel with the 3rd key exclusively."""
+    api_key = os.environ.get("GEMINI_API_KEY_3")
+    if not api_key:
+        logger.warning("GEMINI_API_KEY_3 not found in environment. Falling back to GOOGLE_AI_API_KEY.")
+        api_key = os.environ.get("GOOGLE_AI_API_KEY")
+    if not api_key:
+        logger.critical("No Gemini API key available for the learning agent.")
+        raise ValueError("Missing Gemini API key.")
+    genai.configure(api_key=api_key)
+    return genai.GenerativeModel('gemini-2.5-flash')
 
-if not api_key:
-    logger.critical("No Gemini API key available for the learning agent.")
-    raise ValueError("Missing Gemini API key.")
-
-# Initialize the modern google-genai client with the 3rd key exclusively
-gemini_client = genai.Client(api_key=api_key)
-
-# Initialize Supabase client
-SUPABASE_URL = os.environ.get("SUPABASE_URL") or os.environ.get("NEXT_PUBLIC_SUPABASE_URL")
-SUPABASE_KEY = (
-    os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or
-    os.environ.get("SUPABASE_KEY") or
-    os.environ.get("NEXT_PUBLIC_SUPABASE_ANON_KEY")
-)
-
-supabase_client = None
-if SUPABASE_URL and SUPABASE_KEY:
+def get_supabase_client():
+    """Dynamically initializes and returns a Supabase client to avoid module-level global variables."""
+    url = os.environ.get("SUPABASE_URL") or os.environ.get("NEXT_PUBLIC_SUPABASE_URL")
+    key = (
+        os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or
+        os.environ.get("SUPABASE_KEY") or
+        os.environ.get("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+    )
+    if not url or not key:
+        logger.warning("Supabase credentials not fully configured.")
+        return None
     try:
-        supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
-        logger.info("Supabase client initialized successfully.")
+        return create_client(url, key)
     except Exception as e:
+        print(f"CRITICAL ERROR [Supabase Init]: {str(e)}")
         logger.error(f"Failed to initialize Supabase client: {e}")
-else:
-    logger.warning("Supabase credentials not fully configured.")
+        return None
 
 def fetch_recent_history():
     """Poll Supabase table 'speech_history' for rows from the last 24 hours."""
+    supabase_client = get_supabase_client()
     if not supabase_client:
         logger.warning("Supabase client not active. Cannot poll.")
         return []
@@ -76,6 +76,7 @@ def fetch_recent_history():
         logger.info(f"Retrieved {len(rows)} rows from Supabase.")
         return rows
     except Exception as e:
+        print(f"CRITICAL ERROR [Supabase Query]: {str(e)}")
         logger.error(f"Failed to query Supabase: {e}")
         return []
 
@@ -92,6 +93,7 @@ def save_or_append_rules(new_rules_text):
                     if line.startswith("- If sound is "):
                         existing_rules.add(line)
         except Exception as e:
+            print(f"CRITICAL ERROR [Phonetic Rules File Read]: {str(e)}")
             logger.error(f"Error reading existing phonetic rules cache: {e}")
             
     # Parse new rules
@@ -111,6 +113,7 @@ def save_or_append_rules(new_rules_text):
                 f.write("\n".join(sorted_rules) + "\n")
             logger.info(f"Successfully wrote {len(sorted_rules)} total rules ({new_rules_added} new) to {PHONETIC_RULES_PATH}")
         except Exception as e:
+            print(f"CRITICAL ERROR [Phonetic Rules File Write]: {str(e)}")
             logger.error(f"Error writing phonetic rules cache: {e}")
     else:
         logger.info("No new unique rules discovered in this cycle.")
@@ -151,13 +154,12 @@ Rules:
 """
     
     try:
-        response = gemini_client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                system_instruction=system_instruction,
-                temperature=0.0
-            )
+        model = get_gemini_client()
+        # Set system instruction dynamically on model
+        model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=system_instruction)
+        response = model.generate_content(
+            prompt,
+            generation_config={'temperature': 0.0}
         )
         rules_text = response.text.strip()
         if rules_text:
@@ -166,6 +168,7 @@ Rules:
         else:
             logger.warning("Gemini 2.5 Flash returned an empty response.")
     except Exception as e:
+        print(f"CRITICAL ERROR [Gemini API Request]: {str(e)}")
         logger.error(f"Error calling Gemini API for linguistic compilation: {e}")
 
 def run_loop(poll_interval_seconds=300):
@@ -179,6 +182,7 @@ def run_loop(poll_interval_seconds=300):
             else:
                 logger.info("No recent history rows found in this cycle.")
         except Exception as e:
+            print(f"CRITICAL ERROR [Learning Agent Cycle]: {str(e)}")
             logger.error(f"Unhandled error in learning agent cycle: {e}")
         
         logger.info(f"Sleeping for {poll_interval_seconds}s before next polling cycle...")
