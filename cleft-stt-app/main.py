@@ -41,10 +41,24 @@ else:
     load_dotenv()
 
 # --- 1. API KEY ROTATION SETUP ---
-import itertools
-keys_pool = [os.getenv("GEMINI_API_KEY_1"), os.getenv("GEMINI_API_KEY_2"), os.getenv("GEMINI_API_KEY_3")]
-valid_keys = [k for k in keys_pool if k]
-api_rotator = itertools.cycle(valid_keys)
+rotation_counter = 0
+
+def get_next_api_key():
+    """Dynamically pulls GEMINI_API_KEY_1, GEMINI_API_KEY_2, GEMINI_API_KEY_3 and cycles through them."""
+    global rotation_counter
+    keys_pool = [
+        os.getenv("GEMINI_API_KEY_1"),
+        os.getenv("GEMINI_API_KEY_2"),
+        os.getenv("GEMINI_API_KEY_3")
+    ]
+    valid_keys = [k for k in keys_pool if k]
+    if not valid_keys:
+        raise ValueError("No valid Gemini API keys found in the environment pool.")
+    
+    # Safely select the next key
+    key = valid_keys[rotation_counter % len(valid_keys)]
+    rotation_counter = (rotation_counter + 1) % len(valid_keys)
+    return key
 
 client_lock = threading.Lock()
 
@@ -142,6 +156,7 @@ def load_calibration_map():
         with open(CALIBRATION_MAP_PATH, 'r', encoding='utf-8') as f:
             return json.load(f)
     except Exception as e:
+        print(f"CRITICAL ERROR [Load Calibration Map]: {str(e)}")
         logger.error(f"Error reading calibration_map.json: {e}")
         return {}
 
@@ -367,9 +382,9 @@ def generate_content_with_backoff(model, contents, generation_config=None):
             logger.info(f"Calling Gemini API (model=gemini-2.5-flash, attempt={attempt + 1}/{max_retries + 1})...")
             
             with client_lock:
-                active_key = next(api_rotator)
+                active_key = get_next_api_key()
                 genai.configure(api_key=active_key)
-                sys_inst = getattr(model, '_system_instruction', None)
+                sys_inst = model.system_instruction if hasattr(model, 'system_instruction') else None
                 model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=sys_inst)
                 
                 # Make the content call using the legacy syntax:
@@ -408,7 +423,7 @@ def generate_content_with_backoff(model, contents, generation_config=None):
 # --- 3. TWO-STAGE CORRECTION PIPELINE ---
 @app.route('/transcribe', methods=['POST'])
 def transcribe():
-    """Endpoint to receive recording, run Step A (raw STT) and Step B (Gemini 1.5 Flash correction)."""
+    """Endpoint to receive recording, run Step A (raw STT) and Step B (Gemini 2.5 Flash correction)."""
     if 'audio' not in request.files:
         return jsonify({"error": "No audio file provided in request."}), 400
 
@@ -446,7 +461,10 @@ def transcribe():
 
         # Instantiate model first using the legacy SDK layout
         model = genai.GenerativeModel('gemini-2.5-flash')
-        contents = [{'mime_type': mime_type, 'data': audio_bytes}, stt_prompt]
+        contents = [
+            {"mime_type": mime_type, "data": audio_bytes},
+            stt_prompt
+        ]
         stt_response = generate_content_with_backoff(
             model=model,
             contents=contents,
@@ -455,7 +473,7 @@ def transcribe():
         raw_phonetic_text = stt_response.text.strip()
         logger.info(f"Step A Raw phonetic text: '{raw_phonetic_text}'")
 
-        # --- STEP B: Text Correction Pipeline using Gemini 1.5 Flash ---
+        # --- STEP B: Text Correction Pipeline using Gemini 2.5 Flash ---
         logger.info("Step B: Running text correction pipeline...")
         
         # Load recent history (up to 5 most recent corrections) to teach the model on-the-fly

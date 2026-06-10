@@ -25,11 +25,11 @@ else:
     load_dotenv()
 
 def get_gemini_client():
-    api_key = os.environ.get("GEMINI_API_KEY_3") or os.environ.get("GOOGLE_AI_API_KEY")
+    api_key = os.environ.get("GEMINI_API_KEY_3")
     if not api_key:
-        raise ValueError("Missing Gemini API key.")
+        raise ValueError("Missing GEMINI_API_KEY_3.")
     genai.configure(api_key=api_key)
-    return genai.GenerativeModel('gemini-1.5-flash')
+    return genai.GenerativeModel('gemini-2.5-flash')
 
 def get_supabase_client():
     url = os.environ.get("SUPABASE_URL") or os.environ.get("NEXT_PUBLIC_SUPABASE_URL")
@@ -107,7 +107,7 @@ def save_or_append_rules(new_rules_text):
         logger.info("No new unique rules discovered in this cycle.")
 
 def compile_linguistic_rules(rows):
-    """Analyze discrepancies and discover cleft palate phonetic translation rules using Gemini 1.5 Flash."""
+    """Analyze discrepancies and discover cleft palate phonetic translation rules using Gemini 2.5 Flash."""
     # Filter for rows with discrepancies
     comparison_pairs = []
     for row in rows:
@@ -120,7 +120,7 @@ def compile_linguistic_rules(rows):
         logger.info("No discrepancies between raw and corrected text found in the last 24 hours.")
         return
     
-    logger.info(f"Analyzing {len(comparison_pairs)} discrepancy pairs using Gemini 1.5 Flash...")
+    logger.info(f"Analyzing {len(comparison_pairs)} discrepancy pairs using Gemini 2.5 Flash...")
     
     pairs_str = "\n".join([f"Raw phonetic: \"{raw}\" -> Corrected intent: \"{corrected}\"" for raw, corrected in comparison_pairs])
     
@@ -137,13 +137,13 @@ def compile_linguistic_rules(rows):
     
     try:
         # Obtain client initialized with the 3rd key exclusively
-        api_key = os.environ.get("GEMINI_API_KEY_3") or os.environ.get("GOOGLE_AI_API_KEY")
+        api_key = os.environ.get("GEMINI_API_KEY_3")
         if not api_key:
-            raise ValueError("Missing Gemini API key.")
+            raise ValueError("Missing GEMINI_API_KEY_3 in environment.")
         genai.configure(api_key=api_key)
 
-        # Instantiate model with the correct system instruction layout and 1.5-flash model
-        model = genai.GenerativeModel('gemini-1.5-flash', system_instruction=system_instruction)
+        # Instantiate model with the correct system instruction layout and 2.5-flash model
+        model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=system_instruction)
 
         # Execute content generation and properly close parameters
         response = model.generate_content(
@@ -153,10 +153,10 @@ def compile_linguistic_rules(rows):
 
         rules_text = response.text.strip()
         if rules_text:
-            logger.info("Gemini 1.5 Flash successfully generated rules.")
+            logger.info("Gemini 2.5 Flash successfully generated rules.")
             save_or_append_rules(rules_text)
         else:
-            logger.warning("Gemini 1.5 Flash returned an empty response.")
+            logger.warning("Gemini 2.5 Flash returned an empty response.")
 
     except Exception as e:
         print(f"CRITICAL ERROR [Gemini API Request]: {str(e)}")
