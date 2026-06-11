@@ -46,11 +46,22 @@ else:
 
 # --- 1. API KEY ROTATION SETUP ---
 # Three-key strategy pool: cycles through all three keys in round-robin order
-_api_rotator = itertools.cycle([
+_raw_keys = [
     os.getenv("GEMINI_API_KEY_1"),
     os.getenv("GEMINI_API_KEY_2"),
     os.getenv("GEMINI_API_KEY_3")
-])
+]
+_valid_keys = [k for k in _raw_keys if k and k.strip()]
+if not _valid_keys:
+    # If no numbered keys exist, try fallback to a generic GEMINI_API_KEY
+    fallback = os.getenv("GEMINI_API_KEY")
+    if fallback:
+        _valid_keys = [fallback]
+    else:
+        logger.warning("No valid Gemini API keys found in environment during initialization.")
+        _valid_keys = [""] # Will fail gracefully later
+
+_api_rotator = itertools.cycle(_valid_keys)
 
 def get_next_api_key():
     """Returns the next API key from the pre-built itertools.cycle pool."""
