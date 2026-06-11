@@ -480,14 +480,10 @@ def transcribe():
         with client_lock:
             genai.configure(api_key=get_next_api_key())
         model = genai.GenerativeModel('gemini-2.5-flash')
-        # Build audio Part using protos.Blob — compatible with google-generativeai 0.5.x
-        audio_part = genai.protos.Part(
-            inline_data=genai.protos.Blob(
-                mime_type=mime_type,
-                data=audio_bytes
-            )
-        )
-        contents = [audio_part, stt_prompt]
+        contents = [
+            {"mime_type": mime_type, "data": audio_bytes},
+            stt_prompt
+        ]
         stt_response = generate_content_with_backoff(
             model=model,
             contents=contents,
