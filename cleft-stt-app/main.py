@@ -41,23 +41,19 @@ else:
     load_dotenv()
 
 # --- 1. API KEY ROTATION SETUP ---
-rotation_counter = 0
+# Three-key strategy pool: cycles through all three keys in round-robin order
+import traceback
+_api_rotator = itertools.cycle([
+    os.getenv("GEMINI_API_KEY_1"),
+    os.getenv("GEMINI_API_KEY_2"),
+    os.getenv("GEMINI_API_KEY_3")
+])
 
 def get_next_api_key():
-    """Dynamically pulls GEMINI_API_KEY_1, GEMINI_API_KEY_2, GEMINI_API_KEY_3 and cycles through them."""
-    global rotation_counter
-    keys_pool = [
-        os.getenv("GEMINI_API_KEY_1"),
-        os.getenv("GEMINI_API_KEY_2"),
-        os.getenv("GEMINI_API_KEY_3")
-    ]
-    valid_keys = [k for k in keys_pool if k]
-    if not valid_keys:
+    """Returns the next API key from the pre-built itertools.cycle pool."""
+    key = next(_api_rotator)
+    if not key:
         raise ValueError("No valid Gemini API keys found in the environment pool.")
-    
-    # Safely select the next key
-    key = valid_keys[rotation_counter % len(valid_keys)]
-    rotation_counter = (rotation_counter + 1) % len(valid_keys)
     return key
 
 client_lock = threading.Lock()
@@ -373,31 +369,27 @@ def upload_calibration():
 def generate_content_with_backoff(model, contents, generation_config=None):
     """
     Generate content with explicit, bounded try-except loop.
+    On the first attempt, use the model as passed by the caller.
     If a 500, 501, 502, 503, 504, or 506 status error is caught,
-    wait exactly 2 seconds and retry the call. Allow up to 3 automated retries.
+    rotate to the next API key, re-instantiate the model to gemini-2.5-flash
+    (preserving its system_instruction), wait exactly 2 seconds, then retry.
+    Allow up to 3 automated retries.
     """
     max_retries = 3
     for attempt in range(max_retries + 1):
         try:
             logger.info(f"Calling Gemini API (model=gemini-2.5-flash, attempt={attempt + 1}/{max_retries + 1})...")
-            
-            with client_lock:
-                active_key = get_next_api_key()
-                genai.configure(api_key=active_key)
-                sys_inst = model.system_instruction if hasattr(model, 'system_instruction') else None
-                model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=sys_inst)
-                
-                # Make the content call using the legacy syntax:
-                if generation_config:
-                    return model.generate_content(contents, generation_config=generation_config)
-                return model.generate_content(contents)
+            # Make the content call using the legacy SDK syntax
+            if generation_config:
+                return model.generate_content(contents, generation_config=generation_config)
+            return model.generate_content(contents)
         except Exception as e:
             print(f"CRITICAL ERROR [Gemini API Request]: {str(e)}")
-            
-            # Check if this is one of the target status codes
+
+            # Check if this is one of the target 5xx status codes
             code = getattr(e, 'code', None) or getattr(e, 'status_code', None)
             err_str = str(e)
-            
+
             is_target_error = False
             target_codes = [500, 501, 502, 503, 504, 506]
             if code in target_codes or str(code) in [str(c) for c in target_codes]:
@@ -407,17 +399,26 @@ def generate_content_with_backoff(model, contents, generation_config=None):
                     if str(tc) in err_str:
                         is_target_error = True
                         break
-            
+
             if is_target_error:
                 if attempt < max_retries:
-                    logger.warning(f"Gemini API returned 5xx status error: {e}. Waiting exactly 2 seconds before retry {attempt + 1}...")
+                    logger.warning(
+                        f"Gemini API returned 5xx status error: {e}. "
+                        f"Rotating key and re-instantiating model. Retry {attempt + 1}/{max_retries}..."
+                    )
+                    # Rotate to next key and re-instantiate model with gemini-2.5-flash
+                    with client_lock:
+                        active_key = next(_api_rotator)
+                        genai.configure(api_key=active_key)
+                        sys_inst = model.system_instruction if hasattr(model, 'system_instruction') else None
+                        model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=sys_inst)
                     time.sleep(2)
                     continue
                 else:
                     logger.error(f"Max retries reached ({max_retries}) for Gemini API call. Failing.")
                     raise e
             else:
-                # If not a target 5xx error, raise immediately
+                # Non-5xx error: raise immediately without retry
                 raise e
 
 # --- 3. TWO-STAGE CORRECTION PIPELINE ---
@@ -459,7 +460,9 @@ def transcribe():
             "No conversational filler, no introductory text."
         )
 
-        # Instantiate model first using the legacy SDK layout
+        # Configure the active key from the rotation pool, then instantiate model
+        with client_lock:
+            genai.configure(api_key=get_next_api_key())
         model = genai.GenerativeModel('gemini-2.5-flash')
         contents = [
             {"mime_type": mime_type, "data": audio_bytes},
@@ -526,7 +529,9 @@ INPUT RAW PHONETIC TEXT TO CORRECT:
 CORRECTED TEXT:
 """
 
-        # Instantiate model first using the legacy SDK layout
+        # Configure the active key from the rotation pool, then instantiate model
+        with client_lock:
+            genai.configure(api_key=get_next_api_key())
         model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=system_instruction)
         
         # Generate corrected text
@@ -550,10 +555,12 @@ CORRECTED TEXT:
     except GoogleAPIError as gae:
         print(f"CRITICAL ERROR [Gemini API Request]: {str(gae)}")
         logger.error(f"Google Generative AI API Error: {gae}")
+        traceback.print_exc()
         return jsonify({"error": f"Gemini API Error: {str(gae)}"}), 502
     except Exception as e:
         print(f"CRITICAL ERROR [Transcription Pipeline]: {str(e)}")
         logger.error(f"Unexpected error during transcription process: {e}", exc_info=True)
+        traceback.print_exc()
         return jsonify({"error": f"Server Error: {str(e)}"}), 500
 
 @app.route('/save-correction', methods=['POST'])
@@ -591,6 +598,7 @@ def save_correction():
     except Exception as e:
         print(f"CRITICAL ERROR [Save Correction]: {str(e)}")
         logger.error(f"Error saving correction for {audio_id}: {e}", exc_info=True)
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
