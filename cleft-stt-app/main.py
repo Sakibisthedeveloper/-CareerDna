@@ -480,16 +480,14 @@ def transcribe():
         with client_lock:
             genai.configure(api_key=get_next_api_key())
         model = genai.GenerativeModel('gemini-2.5-flash')
-        audio_b64 = base64.b64encode(audio_bytes).decode("utf-8")
-        contents = [
-            {
-                "inline_data": {
-                    "mime_type": mime_type,
-                    "data": audio_b64
-                }
-            },
-            stt_prompt
-        ]
+        # Build audio Part using protos.Blob — compatible with google-generativeai 0.5.x
+        audio_part = genai.protos.Part(
+            inline_data=genai.protos.Blob(
+                mime_type=mime_type,
+                data=audio_bytes
+            )
+        )
+        contents = [audio_part, stt_prompt]
         stt_response = generate_content_with_backoff(
             model=model,
             contents=contents,
@@ -556,11 +554,11 @@ CORRECTED TEXT:
             genai.configure(api_key=get_next_api_key())
         model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=system_instruction)
         
-        # Generate corrected text — wrap config in GenerationConfig so legacy SDK can serialize it
+        # Generate corrected text — plain dict works fine in google-generativeai 0.5.x
         correction_response = generate_content_with_backoff(
             model=model,
             contents=prompt_content,
-            generation_config=genai.types.GenerationConfig(temperature=0.0)
+            generation_config={'temperature': 0.0}
         )
         transcription = correction_response.text.strip()
         logger.info(f"Step B Corrected transcription: '{transcription}'")
@@ -575,15 +573,15 @@ CORRECTED TEXT:
         })
 
     except GoogleAPIError as gae:
-        print(f"CRITICAL ERROR [Gemini API Request]: {str(gae)}")
-        logger.error(f"Google Generative AI API Error: {gae}")
-        traceback.print_exc()
+        print(f"CRITICAL ERROR [Gemini API Request]: {str(gae)}", flush=True)
+        traceback.print_exc(file=sys.stdout)
+        sys.stdout.flush()
         return jsonify({"error": f"Gemini API Error: {str(gae)}"}), 502
     except Exception as e:
-        print(f"CRITICAL ERROR [Transcription Pipeline]: {str(e)}")
-        logger.error(f"Unexpected error during transcription process: {e}", exc_info=True)
-        traceback.print_exc()
-        return jsonify({"error": f"Server Error: {str(e)}"}), 500
+        print(f"CRITICAL ERROR [Transcription Pipeline]: {type(e).__name__}: {str(e)}", flush=True)
+        traceback.print_exc(file=sys.stdout)
+        sys.stdout.flush()
+        return jsonify({"error": f"{type(e).__name__}: {str(e)}"}), 500
 
 @app.route('/save-correction', methods=['POST'])
 def save_correction():
