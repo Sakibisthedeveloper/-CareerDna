@@ -437,8 +437,23 @@ def transcribe():
 
     temp_local_path = None
     try:
-        # Save incoming audio blob locally for physical record
-        suffix = os.path.splitext(audio_file.filename)[1] or '.webm'
+        # Derive MIME type from the request Content-Type header (most reliable for browser blobs)
+        # Falls back to filename extension, then hard-defaults to audio/webm
+        content_type_header = audio_file.content_type or ''
+        if content_type_header and content_type_header != 'application/octet-stream':
+            mime_type = content_type_header.split(';')[0].strip()
+        else:
+            raw_name = audio_file.filename or ''
+            ext = os.path.splitext(raw_name.split('?')[0])[1].lower()
+            mime_type = get_mime_type(f'audio{ext}') if ext else 'audio/webm'
+
+        # Map mime_type to a clean file suffix for local storage
+        mime_to_ext = {
+            'audio/webm': '.webm', 'audio/wav': '.wav', 'audio/mpeg': '.mp3',
+            'audio/mp4': '.mp4', 'audio/ogg': '.ogg', 'audio/flac': '.flac',
+            'audio/aac': '.aac', 'audio/m4a': '.m4a',
+        }
+        suffix = mime_to_ext.get(mime_type, '.webm')
         timestamp = int(time.time() * 1000)
         history_filename = f"history_{timestamp}{suffix}"
         temp_local_path = os.path.join(HISTORY_DIR, history_filename)
@@ -450,9 +465,7 @@ def transcribe():
 
         # Save to disk asynchronously in a background thread to prevent blocking
         save_file_nonblocking(audio_bytes, temp_local_path)
-        logger.info(f"Saved incoming audio directly to history: {temp_local_path}")
-
-        mime_type = get_mime_type(temp_local_path)
+        logger.info(f"Saved incoming audio to history: {temp_local_path} (mime={mime_type})")
 
         # --- STEP A: High-Speed Raw STT Layer ---
         logger.info("Step A: Running high-speed raw STT...")
@@ -543,11 +556,11 @@ CORRECTED TEXT:
             genai.configure(api_key=get_next_api_key())
         model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=system_instruction)
         
-        # Generate corrected text
+        # Generate corrected text — wrap config in GenerationConfig so legacy SDK can serialize it
         correction_response = generate_content_with_backoff(
             model=model,
             contents=prompt_content,
-            generation_config={'temperature': 0.0}
+            generation_config=genai.types.GenerationConfig(temperature=0.0)
         )
         transcription = correction_response.text.strip()
         logger.info(f"Step B Corrected transcription: '{transcription}'")
