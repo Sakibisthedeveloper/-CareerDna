@@ -1,5 +1,8 @@
 import os
+import sys
 import time
+import traceback
+
 import json
 import logging
 import threading
@@ -42,7 +45,6 @@ else:
 
 # --- 1. API KEY ROTATION SETUP ---
 # Three-key strategy pool: cycles through all three keys in round-robin order
-import traceback
 _api_rotator = itertools.cycle([
     os.getenv("GEMINI_API_KEY_1"),
     os.getenv("GEMINI_API_KEY_2"),
