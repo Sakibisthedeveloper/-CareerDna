@@ -443,7 +443,7 @@
             transition: transform 0.3s ease;
         }
 
-        .calibration-panel.open svg {
+        .calibration-panel.open #toggle-arrow {
             transform: rotate(180deg);
         }
 
@@ -637,7 +637,7 @@
     <div class="container">
         <header>
             <h1>Resonate</h1>
-            <p class="subtitle">Custom Speech-to-Text for Cleft Palate Speech Correction</p>
+            <p class="subtitle">Speech-to-Text</p>
         </header>
 
         <!-- Calibration Status -->
@@ -747,7 +747,6 @@
     </div>
 
     <footer>
-        Resonate Assistant &bull; Powered by Gemini 1.5 Flash
     </footer>
 
     <script>
@@ -831,19 +830,19 @@
                     calibrationDot.className = 'dot';
                     calibrationDot.style.background = '#34d399';
                     calibrationDot.style.boxShadow = '0 0 8px #34d399';
-                    calibrationText.textContent = `Calibrated (${data.count} audio templates loaded)`;
+                    calibrationText.textContent = `Calibrated`;
                     hideAlert();
                 } else if (data.status === 'partially_calibrated') {
                     calibrationDot.className = 'dot';
                     calibrationDot.style.background = '#f59e0b';
                     calibrationDot.style.boxShadow = '0 0 8px #f59e0b';
-                    calibrationText.textContent = `Partial calibration (${data.count}/${data.total} templates loaded)`;
+                    calibrationText.textContent = `Partially Calibrated (${data.count}/${data.total})`;
                     showAlert("Your model is partially trained. Record the remaining sentences in the panel below for full calibration.", "info");
                 } else {
                     calibrationDot.className = 'dot inactive';
                     calibrationDot.style.background = '#f87171';
                     calibrationDot.style.boxShadow = '0 0 8px #f87171';
-                    calibrationText.textContent = 'Uncalibrated (No training templates loaded)';
+                    calibrationText.textContent = 'Uncalibrated';
                     showAlert("Your model is uncalibrated. Expand the 'Model Training & Calibration' panel below to record your voice templates.", "info");
                 }
 
