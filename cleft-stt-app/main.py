@@ -7,6 +7,7 @@ import json
 import logging
 import threading
 import itertools
+import base64
 import requests
 import io
 import concurrent.futures
@@ -466,8 +467,14 @@ def transcribe():
         with client_lock:
             genai.configure(api_key=get_next_api_key())
         model = genai.GenerativeModel('gemini-2.5-flash')
+        audio_b64 = base64.b64encode(audio_bytes).decode("utf-8")
         contents = [
-            {"mime_type": mime_type, "data": audio_bytes},
+            {
+                "inline_data": {
+                    "mime_type": mime_type,
+                    "data": audio_b64
+                }
+            },
             stt_prompt
         ]
         stt_response = generate_content_with_backoff(
