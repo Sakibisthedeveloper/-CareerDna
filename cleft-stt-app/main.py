@@ -405,7 +405,7 @@ def generate_content_with_backoff(model, contents, generation_config=None):
             err_str = str(e)
 
             is_target_error = False
-            target_codes = [500, 501, 502, 503, 504, 506]
+            target_codes = [429, 500, 501, 502, 503, 504, 506]
             if code in target_codes or str(code) in [str(c) for c in target_codes]:
                 is_target_error = True
             else:
