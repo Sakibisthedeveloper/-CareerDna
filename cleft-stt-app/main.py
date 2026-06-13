@@ -385,21 +385,21 @@ def upload_calibration():
 
 def generate_content_with_backoff(model, contents, generation_config=None):
     """
-    Generate content with explicit, bounded try-except loop.
-    On the first attempt, use the model as passed by the caller.
-    If a 500, 501, 502, 503, 504, or 506 status error is caught,
-    rotate to the next API key, re-instantiate the model to gemini-2.5-flash
-    (preserving its system_instruction), wait exactly 2 seconds, then retry.
-    Allow up to 3 automated retries.
+    Generate content with explicit, bounded try-except loop and disabled safety filters.
     """
+    safety_settings = [
+        {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+        {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+    ]
     max_retries = 3
     for attempt in range(max_retries + 1):
         try:
             logger.info(f"Calling Gemini API (model=gemini-2.5-flash, attempt={attempt + 1}/{max_retries + 1})...")
-            # Make the content call using the legacy SDK syntax
             if generation_config:
-                return model.generate_content(contents, generation_config=generation_config)
-            return model.generate_content(contents)
+                return model.generate_content(contents, generation_config=generation_config, safety_settings=safety_settings)
+            return model.generate_content(contents, safety_settings=safety_settings)
         except Exception as e:
             print(f"CRITICAL ERROR [Gemini API Request]: {str(e)}")
 
@@ -501,9 +501,15 @@ def transcribe():
         stt_response = generate_content_with_backoff(
             model=model,
             contents=contents,
-            generation_config=None
+            generation_config={'temperature': 0.0}
         )
-        raw_phonetic_text = stt_response.text.strip()
+        try:
+            raw_phonetic_text = stt_response.text.strip()
+        except ValueError:
+            # If safety filters somehow still block or prompt fails, catch gracefully
+            raw_phonetic_text = "[Transcription blocked or failed]"
+            logger.warning("Step A STT failed to return valid text. Response may have been blocked.")
+            
         logger.info(f"Step A Raw phonetic text: '{raw_phonetic_text}'")
 
         # --- STEP B: Text Correction Pipeline using Gemini 2.5 Flash ---
@@ -564,13 +570,17 @@ CORRECTED TEXT:
             genai.configure(api_key=get_next_api_key())
         model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=system_instruction)
         
-        # Generate corrected text — plain dict works fine in google-generativeai 0.5.x
         correction_response = generate_content_with_backoff(
             model=model,
             contents=prompt_content,
             generation_config={'temperature': 0.0}
         )
-        transcription = correction_response.text.strip()
+        try:
+            transcription = correction_response.text.strip()
+        except ValueError:
+            transcription = "I'm sorry, the audio could not be properly transcribed due to unclear phonetics or safety constraints."
+            logger.warning("Step B Correction failed to return valid text.")
+            
         logger.info(f"Step B Corrected transcription: '{transcription}'")
 
         # Save record of both raw phonetic and corrected texts to sync history backend

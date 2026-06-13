@@ -145,10 +145,18 @@ def compile_linguistic_rules(rows):
         # Instantiate model with the correct system instruction layout and 2.5-flash model
         model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=system_instruction)
 
+        safety_settings = [
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+        ]
+
         # Execute content generation and properly close parameters
         response = model.generate_content(
             prompt,
-            generation_config={'temperature': 0.0}
+            generation_config={'temperature': 0.0},
+            safety_settings=safety_settings
         )
 
         rules_text = response.text.strip()
