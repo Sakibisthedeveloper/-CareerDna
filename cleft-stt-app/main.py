@@ -51,6 +51,9 @@ _raw_keys = [
     os.getenv("GEMINI_API_KEY_2"),
     os.getenv("GEMINI_API_KEY_3")
 ]
+if os.getenv("GEMINI_API_KEYS"):
+    _raw_keys.extend([k.strip() for k in os.getenv("GEMINI_API_KEYS").split(",")])
+
 _valid_keys = [k.strip() for k in _raw_keys if k and k.strip()]
 if not _valid_keys:
     # If no numbered keys exist, try fallback to a generic GEMINI_API_KEY
@@ -580,14 +583,10 @@ CORRECTED TEXT:
         })
 
     except GoogleAPIError as gae:
-        print(f"CRITICAL ERROR [Gemini API Request]: {str(gae)}", flush=True)
-        traceback.print_exc(file=sys.stdout)
-        sys.stdout.flush()
+        logger.error(f"CRITICAL ERROR [Gemini API Request]: {str(gae)}", exc_info=True)
         return jsonify({"error": f"Gemini API Error: {str(gae)}"}), 502
     except Exception as e:
-        print(f"CRITICAL ERROR [Transcription Pipeline]: {type(e).__name__}: {str(e)}", flush=True)
-        traceback.print_exc(file=sys.stdout)
-        sys.stdout.flush()
+        logger.error(f"CRITICAL ERROR [Transcription Pipeline]: {type(e).__name__}: {str(e)}", exc_info=True)
         return jsonify({"error": f"{type(e).__name__}: {str(e)}"}), 500
 
 @app.route('/save-correction', methods=['POST'])
