@@ -84,15 +84,23 @@ def save_or_append_rules(new_rules_text):
             print(f"CRITICAL ERROR [Phonetic Rules File Read]: {str(e)}")
             logger.error(f"Error reading existing phonetic rules cache: {e}")
             
-    # Parse new rules
+    # Parse new rules robustly
     new_rules_added = 0
+    import re
+    rule_pattern = re.compile(r"If sound is\s*\[?(.*?)\]?\s*->\s*translates to:\s*\[?([^\]\n]+)", re.IGNORECASE)
+    
     for line in new_rules_text.splitlines():
         line = line.strip()
-        if line.startswith("- If sound is "):
-            if line not in existing_rules:
-                existing_rules.add(line)
-                new_rules_added += 1
-                logger.info(f"Discovered new phonetic rule: {line}")
+        match = rule_pattern.search(line)
+        if match:
+            sound_x = match.group(1).strip()
+            sound_y = match.group(2).strip()
+            if sound_x and sound_y:
+                normalized_rule = f"- If sound is [{sound_x}] -> translates to: [{sound_y}]"
+                if normalized_rule not in existing_rules:
+                    existing_rules.add(normalized_rule)
+                    new_rules_added += 1
+                    logger.info(f"Discovered new phonetic rule: {normalized_rule}")
                 
     if new_rules_added > 0:
         try:
@@ -127,9 +135,11 @@ def compile_linguistic_rules(rows):
     system_instruction = (
         "You are an expert linguistic analysis compiler specializing in cleft palate speech pathology and speech-to-text calibration.\n"
         "Your task is to compare the discrepancies between raw speech inputs (which have phonetic distortions) and successfully corrected intended texts.\n"
-        "Systematically discover repeated phonetic errors caused by the speaker's cleft palate and output clean, standard dictionary rules matching this exact syntax:\n"
+        "You MUST isolate the specific mispronounced words/sounds from the sentences and map them to their corrected English words.\n"
+        "Even if the input is a full sentence, break it down and extract the individual distorted words to build a word-to-word dictionary.\n"
+        "Output clean, standard dictionary rules matching this EXACT syntax:\n"
         "- If sound is [X] -> translates to: [Y]\n"
-        "Where [X] is the distorted/mispronounced sound or word, and [Y] is the intended translated word/phrase.\n"
+        "Where [X] is the specific distorted/mispronounced sound, word, or short phrase, and [Y] is the intended translated word/phrase.\n"
         "Return ONLY these rules, one per line. Do not include any intro, explanation, markdown formatting, or preamble."
     )
     
@@ -160,6 +170,7 @@ def compile_linguistic_rules(rows):
         )
 
         rules_text = response.text.strip()
+        logger.info(f"DEBUG: Gemini raw output:\n{rules_text}")
         if rules_text:
             logger.info("Gemini 2.5 Flash successfully generated rules.")
             save_or_append_rules(rules_text)
