@@ -502,6 +502,12 @@ def _run_transcription_pipeline(task_id, audio_bytes, mime_type, history_filenam
             contents=contents,
             generation_config={'temperature': 0.0}
         )
+        
+        # Free audio bytes from RAM immediately after STT completes
+        # This is critical on Render free tier (512MB RAM)
+        del audio_bytes
+        del contents
+
         try:
             raw_phonetic_text = stt_response.text.strip()
         except ValueError:
@@ -595,6 +601,14 @@ CORRECTED TEXT:
                 "status": "error",
                 "error": f"{type(e).__name__}: {str(e)}"
             }
+    finally:
+        # Clean up temp audio file from ephemeral disk to free space
+        try:
+            if temp_local_path and os.path.exists(temp_local_path):
+                os.remove(temp_local_path)
+                logger.info(f"[{task_id}] Cleaned up temp audio file: {temp_local_path}")
+        except Exception:
+            pass
 
 
 @app.route('/transcribe', methods=['POST'])

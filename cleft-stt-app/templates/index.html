@@ -912,13 +912,12 @@
                     options = { mimeType: 'audio/ogg' };
                 }
                 if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                    options = { mimeType: 'audio/mp4' }; // Safari iOS
+                }
+                if (!MediaRecorder.isTypeSupported(options.mimeType)) {
                     options = { mimeType: '' };
                 }
                 
-                // Mobile optimization: lower bitrate
-                if (IS_MOBILE && options.mimeType) {
-                    options.audioBitsPerSecond = 32000;
-                }
                 calibRecorder = new MediaRecorder(stream, options);
                 calibRecorder.ondataavailable = (e) => {
                     if (e.data.size > 0) {
@@ -927,9 +926,11 @@
                 };
                 
                 calibRecorder.onstop = async () => {
-                    const audioBlob = new Blob(calibChunks, { type: calibRecorder.mimeType || 'audio/webm' });
+                    const rawBlob = new Blob(calibChunks, { type: calibRecorder.mimeType || 'audio/webm' });
                     stream.getTracks().forEach(track => track.stop());
-                    await uploadCalibrationAudio(audioBlob, filename);
+                    // Normalize to WAV for consistent format
+                    const normalizedBlob = await normalizeToWav(rawBlob);
+                    await uploadCalibrationAudio(normalizedBlob, filename);
                 };
                 
                 activeCalibFilename = filename;
@@ -1070,6 +1071,106 @@
         }
         const IS_MOBILE = isMobileDevice();
 
+        // ========================================================
+        // AUDIO NORMALIZATION: Convert ANY browser recording format
+        // to 16kHz mono WAV before sending to backend.
+        //
+        // WHY: Safari iOS records as audio/mp4 (AAC), Android Chrome
+        // records as audio/webm;codecs=opus. Gemini handles WAV best.
+        // 16kHz mono is ideal for STT and reduces file size by ~80%.
+        // ========================================================
+        function encodeWAV(samples, sampleRate) {
+            const buffer = new ArrayBuffer(44 + samples.length * 2);
+            const view = new DataView(buffer);
+
+            function writeString(offset, string) {
+                for (let i = 0; i < string.length; i++) {
+                    view.setUint8(offset + i, string.charCodeAt(i));
+                }
+            }
+
+            // WAV header
+            writeString(0, 'RIFF');
+            view.setUint32(4, 36 + samples.length * 2, true);
+            writeString(8, 'WAVE');
+            writeString(12, 'fmt ');
+            view.setUint32(16, 16, true);          // chunk size
+            view.setUint16(20, 1, true);            // PCM format
+            view.setUint16(22, 1, true);            // mono channel
+            view.setUint32(24, sampleRate, true);   // sample rate
+            view.setUint32(28, sampleRate * 2, true); // byte rate
+            view.setUint16(32, 2, true);            // block align
+            view.setUint16(34, 16, true);           // bits per sample
+            writeString(36, 'data');
+            view.setUint32(40, samples.length * 2, true);
+
+            // Write PCM samples (clamp to int16 range)
+            for (let i = 0; i < samples.length; i++) {
+                const s = Math.max(-1, Math.min(1, samples[i]));
+                view.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+            }
+
+            return new Blob([view], { type: 'audio/wav' });
+        }
+
+        async function normalizeToWav(audioBlob) {
+            /**
+             * Takes ANY audio blob (webm/opus, mp4/aac, ogg, etc.)
+             * and converts it to 16kHz mono WAV using Web Audio API.
+             * This runs entirely in the browser — no server conversion needed.
+             */
+            const TARGET_SAMPLE_RATE = 16000; // 16kHz — ideal for STT
+
+            const arrayBuffer = await audioBlob.arrayBuffer();
+            
+            // Decode the browser-native audio format into raw PCM samples
+            const tempCtx = new (window.AudioContext || window.webkitAudioContext)();
+            let audioBuffer;
+            try {
+                audioBuffer = await tempCtx.decodeAudioData(arrayBuffer);
+            } catch (decodeErr) {
+                console.warn('decodeAudioData failed, sending raw blob:', decodeErr);
+                await tempCtx.close();
+                return audioBlob; // Fallback: send original blob if decode fails
+            }
+            await tempCtx.close();
+
+            // Mix down to mono (average all channels)
+            const numberOfChannels = audioBuffer.numberOfChannels;
+            const originalLength = audioBuffer.length;
+            const originalRate = audioBuffer.sampleRate;
+            
+            let monoSamples = new Float32Array(originalLength);
+            for (let ch = 0; ch < numberOfChannels; ch++) {
+                const channelData = audioBuffer.getChannelData(ch);
+                for (let i = 0; i < originalLength; i++) {
+                    monoSamples[i] += channelData[i] / numberOfChannels;
+                }
+            }
+
+            // Resample to 16kHz using linear interpolation
+            const ratio = originalRate / TARGET_SAMPLE_RATE;
+            const newLength = Math.round(originalLength / ratio);
+            const resampled = new Float32Array(newLength);
+            
+            for (let i = 0; i < newLength; i++) {
+                const srcIdx = i * ratio;
+                const srcIdxFloor = Math.floor(srcIdx);
+                const srcIdxCeil = Math.min(srcIdxFloor + 1, originalLength - 1);
+                const frac = srcIdx - srcIdxFloor;
+                resampled[i] = monoSamples[srcIdxFloor] * (1 - frac) + monoSamples[srcIdxCeil] * frac;
+            }
+
+            // Free the original large buffer
+            monoSamples = null;
+
+            // Encode as WAV
+            const wavBlob = encodeWAV(resampled, TARGET_SAMPLE_RATE);
+            
+            console.log(`Audio normalized: ${audioBlob.type} ${(audioBlob.size/1024).toFixed(0)}KB → WAV 16kHz mono ${(wavBlob.size/1024).toFixed(0)}KB`);
+            return wavBlob;
+        }
+
         // Start Recording
         async function startRecording() {
             hideAlert();
@@ -1084,19 +1185,17 @@
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 
-                // Select MIME Type compatible with browsers
-                // On mobile, use lower bitrate to reduce blob size and upload time
+                // Select MIME Type — let the browser pick whatever it natively supports.
+                // We normalize to WAV later, so the recording format doesn't matter.
                 let options = { mimeType: 'audio/webm' };
                 if (!MediaRecorder.isTypeSupported(options.mimeType)) {
                     options = { mimeType: 'audio/ogg' };
                 }
                 if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-                    options = { mimeType: '' }; // Fallback to browser default
+                    options = { mimeType: 'audio/mp4' }; // Safari iOS
                 }
-
-                // Mobile optimization: lower bitrate = smaller files = faster uploads
-                if (IS_MOBILE && options.mimeType) {
-                    options.audioBitsPerSecond = 32000; // 32kbps (vs default ~128kbps)
+                if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                    options = { mimeType: '' }; // Absolute fallback
                 }
 
                 mediaRecorder = new MediaRecorder(stream, options);
@@ -1108,12 +1207,16 @@
                 };
 
                 mediaRecorder.onstop = async () => {
-                    const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+                    const rawBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
                     // Clean up Stream tracks
                     stream.getTracks().forEach(track => track.stop());
                     
-                    // Send blob to backend
-                    await sendAudioToBackend(audioBlob);
+                    // Normalize to 16kHz mono WAV before sending
+                    statusText.textContent = 'Converting audio format...';
+                    const normalizedBlob = await normalizeToWav(rawBlob);
+                    
+                    // Send normalized WAV to backend
+                    await sendAudioToBackend(normalizedBlob);
                 };
 
                 // Setup visualizer & change DOM state
@@ -1178,28 +1281,24 @@
                     });
 
                     if (!resp.ok && resp.status !== 500) {
-                        // Task not found or server issue
                         throw new Error(`Poll failed with status ${resp.status}`);
                     }
 
                     const data = await resp.json();
 
                     if (data.status === 'done') {
-                        return data; // Success!
+                        return data;
                     } else if (data.status === 'error') {
                         throw new Error(data.error || 'Transcription failed on server');
                     }
 
-                    // Update UI with current stage
                     const stageMsg = stageMessages[data.stage] || stageMessages[data.status] || 'Processing...';
                     statusText.textContent = stageMsg;
 
                 } catch (pollErr) {
                     if (attempt >= maxAttempts - 1) throw pollErr;
-                    // Network hiccup — wait and retry
                 }
 
-                // Wait 2 seconds between polls
                 await new Promise(resolve => setTimeout(resolve, 2000));
             }
 
@@ -1239,11 +1338,9 @@
             
             const formData = new FormData();
             
-            // Determine file extension
-            let extension = 'webm';
-            if (audioBlob.type.includes('ogg')) extension = 'ogg';
-            if (audioBlob.type.includes('wav')) extension = 'wav';
-            if (audioBlob.type.includes('mp4')) extension = 'mp4';
+            // After normalization, blob is always WAV
+            const isWav = audioBlob.type === 'audio/wav' || audioBlob.type === 'audio/wave';
+            const extension = isWav ? 'wav' : 'webm';
             
             formData.append('audio', audioBlob, `speech.${extension}`);
 
@@ -1253,7 +1350,6 @@
             }
 
             try {
-                // Upload with timeout (30s for upload, which is generous)
                 const uploadTimeout = IS_MOBILE ? 25000 : 120000;
                 const response = await fetchWithTimeout('/transcribe', {
                     method: 'POST',
@@ -1273,7 +1369,6 @@
                 const data = await response.json();
 
                 if (data.task_id) {
-                    // --- ASYNC MODE: Poll for results ---
                     statusText.textContent = 'Processing your speech...';
                     const result = await pollTranscriptionStatus(data.task_id);
                     
@@ -1281,7 +1376,6 @@
                     resultBox.textContent = result.transcription;
                     lastTranscribedAudioId = result.audio_id;
                 } else {
-                    // --- SYNC MODE: Direct result ---
                     rawResultBox.textContent = data.raw_transcription || "No raw phonetics captured.";
                     resultBox.textContent = data.transcription;
                     lastTranscribedAudioId = data.audio_id;
@@ -1291,7 +1385,6 @@
                 statusText.textContent = 'Transcription complete!';
                 hideAlert();
                 
-                // Reset correction UI state
                 correctionContainer.style.display = 'none';
                 editBtnText.textContent = 'Correct';
                 editBtn.style.background = '';
