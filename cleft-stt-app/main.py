@@ -486,6 +486,7 @@ def _run_transcription_pipeline(task_id, audio_bytes, mime_type, history_filenam
         stt_prompt = (
             "You are a rapid speech-to-text transcriber. Transcribe the following audio file exactly as it sounds, "
             "capturing the raw phonetics, even if there are speech distortions, cleft palate nasalizations, or unclear words. "
+            "CRITICAL: You must capture every single word, even if the user speaks in a very low volume or a very high volume. Do not drop quiet words. "
             "Do not attempt to fix grammar, spelling, or meaning. Return ONLY the raw transcribed text. "
             "No conversational filler, no introductory text."
         )
@@ -534,11 +535,10 @@ def _run_transcription_pipeline(task_id, audio_bytes, mime_type, history_filenam
             recent_history_str = "No recent history available."
 
         system_instruction = (
-            "You are an expert assistive cleft palate speech correction assistant.\n"
-            "Your task is to take a raw, phonetic transcription (which is distorted due to cleft palate speech patterns) "
-            "and output the corrected, intended text.\n"
-            "Use the provided voice linguistic profile, calibration text sentences, and recent correction history "
-            "to map the phonetic distortions back to the correct English phrase.\n"
+            "You are an expert assistive cleft palate speech correction assistant operating under strict protocols.\n"
+            "Your task is to take a raw, phonetic transcription and output the corrected, intended text.\n"
+            "You have a strict SOP (Standard Operating Procedure) for phonetic mapping in front of you. "
+            "You MUST apply this SOP strictly, mapping the phonetic distortions back to the correct English phrase word-by-word.\n"
             "Return ONLY the completely corrected text. Do not include any explanations, preamble, or formatting."
         )
 
@@ -551,17 +551,17 @@ def _run_transcription_pipeline(task_id, audio_bytes, mime_type, history_filenam
                 print(f"CRITICAL ERROR [Phonetic Rules Dynamic Read]: {str(e)}")
                 logger.error(f"Error loading phonetic rules file dynamically: {e}")
 
-        profile_content = VOICE_LINGUISTIC_PROFILE
+        sop_content = ""
         if learned_rules:
-            profile_content += f"\nLEARNED PHONETIC MAPPING RULES (AUTOMATICALLY DISCOVERED):\n{learned_rules}\n"
+            sop_content = f"\n=== STRICT STANDARD OPERATING PROCEDURE (SOP) FOR PHONETIC MAPPING ===\nYou MUST keep this SOP in front of you and apply it word-by-word to the input text:\n{learned_rules}\n======================================================================\n"
 
         prompt_content = f"""
-{profile_content}
-
+{VOICE_LINGUISTIC_PROFILE}
+{sop_content}
 RECENT CORRECTION HISTORY (Examples of successful corrections):
 {recent_history_str}
 
-INPUT RAW PHONETIC TEXT TO CORRECT:
+INPUT RAW PHONETIC TEXT TO CORRECT (Translate this word-by-word using the SOP):
 "{raw_phonetic_text}"
 
 CORRECTED TEXT:
