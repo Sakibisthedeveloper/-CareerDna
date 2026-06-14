@@ -12,6 +12,7 @@ import requests
 import io
 import concurrent.futures
 from flask import Flask, request, jsonify, render_template
+from werkzeug.middleware.proxy_fix import ProxyFix
 from dotenv import load_dotenv
 import google.generativeai as genai
 from google.api_core.exceptions import GoogleAPIError
@@ -23,6 +24,10 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max upload size
+
+# ProxyFix: Render's load balancer forwards X-Forwarded-For, X-Forwarded-Proto headers.
+# Without this, Flask misidentifies the client IP/scheme behind the proxy.
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
 # Directory paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -188,11 +193,13 @@ def check_calibration_files_present():
 
 # --- 4. PERSISTENT HISTORY SYNC BACKEND ---
 def fetch_history_from_supabase():
-    """Fetch persistent speech history from Supabase table 'speech_history'."""
+    """Fetch persistent speech history from Supabase table 'speech_history'.
+    Uses a thread-based timeout to prevent hanging when Supabase is slow/unreachable."""
     supabase_client = get_supabase_client()
     if not supabase_client:
         return None
-    try:
+    
+    def _fetch():
         response = supabase_client.table('speech_history') \
             .select("id,raw_transcript,corrected_text") \
             .order("created_at", desc=False) \
@@ -203,13 +210,22 @@ def fetch_history_from_supabase():
         for row in rows:
             row_id = row.get("id")
             if row_id is not None:
-                # Map db row to history format, using db_ID as key
                 history_map[f"db_{row_id}"] = {
                     "raw_text": row.get("raw_transcript", ""),
                     "corrected_text": row.get("corrected_text", "")
                 }
+        return history_map
+    
+    try:
+        # Timeout after 8 seconds to prevent Supabase hangs from blocking the pipeline
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(_fetch)
+            history_map = future.result(timeout=8)
         logger.info(f"Loaded {len(history_map)} history entries from Supabase.")
         return history_map
+    except concurrent.futures.TimeoutError:
+        logger.warning("Supabase fetch timed out after 8s. Falling back to local history.")
+        return None
     except Exception as e:
         print(f"CRITICAL ERROR [Supabase Query]: {str(e)}")
         logger.error(f"Failed to fetch history from Supabase: {e}")
@@ -445,6 +461,19 @@ def generate_content_with_backoff(model, contents, generation_config=None):
 _transcription_tasks = {}
 _task_lock = threading.Lock()
 
+def _cleanup_stale_tasks():
+    """Remove tasks older than 5 minutes to prevent memory leaks on Render's 512MB RAM."""
+    cutoff = int((time.time() - 300) * 1000)  # 5 minutes ago in ms
+    with _task_lock:
+        stale_keys = [
+            k for k in _transcription_tasks
+            if k.startswith('task_') and int(k.split('_')[1]) < cutoff
+        ]
+        for k in stale_keys:
+            _transcription_tasks.pop(k, None)
+        if stale_keys:
+            logger.info(f"Cleaned up {len(stale_keys)} stale transcription tasks from memory.")
+
 def _run_transcription_pipeline(task_id, audio_bytes, mime_type, history_filename, temp_local_path):
     """Run the full STT + Correction pipeline in a background thread.
     This prevents Render's 30s request timeout from killing mobile requests."""
@@ -575,6 +604,8 @@ def transcribe():
     - mode=async (default on mobile): Returns a task_id immediately, client polls /transcribe-status
     - mode=sync: Runs the full pipeline synchronously (legacy behavior for fast connections)
     """
+    # Cleanup stale tasks on every request to prevent memory leaks
+    _cleanup_stale_tasks()
     if 'audio' not in request.files:
         return jsonify({"error": "No audio file provided in request."}), 400
 
