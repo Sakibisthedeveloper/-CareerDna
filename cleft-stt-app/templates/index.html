@@ -915,6 +915,10 @@
                     options = { mimeType: '' };
                 }
                 
+                // Mobile optimization: lower bitrate
+                if (IS_MOBILE && options.mimeType) {
+                    options.audioBitsPerSecond = 32000;
+                }
                 calibRecorder = new MediaRecorder(stream, options);
                 calibRecorder.ondataavailable = (e) => {
                     if (e.data.size > 0) {
@@ -1059,6 +1063,13 @@
             draw();
         }
 
+        // --- MOBILE DETECTION ---
+        function isMobileDevice() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+                || (navigator.maxTouchPoints && navigator.maxTouchPoints > 2 && /MacIntel/.test(navigator.platform));
+        }
+        const IS_MOBILE = isMobileDevice();
+
         // Start Recording
         async function startRecording() {
             hideAlert();
@@ -1074,12 +1085,18 @@
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 
                 // Select MIME Type compatible with browsers
+                // On mobile, use lower bitrate to reduce blob size and upload time
                 let options = { mimeType: 'audio/webm' };
                 if (!MediaRecorder.isTypeSupported(options.mimeType)) {
                     options = { mimeType: 'audio/ogg' };
                 }
                 if (!MediaRecorder.isTypeSupported(options.mimeType)) {
                     options = { mimeType: '' }; // Fallback to browser default
+                }
+
+                // Mobile optimization: lower bitrate = smaller files = faster uploads
+                if (IS_MOBILE && options.mimeType) {
+                    options.audioBitsPerSecond = 32000; // 32kbps (vs default ~128kbps)
                 }
 
                 mediaRecorder = new MediaRecorder(stream, options);
@@ -1145,11 +1162,80 @@
             }
         });
 
+        // --- ASYNC POLLING for mobile transcription ---
+        async function pollTranscriptionStatus(taskId, maxAttempts = 90) {
+            const stageMessages = {
+                'uploading': 'Uploading audio to server...',
+                'stt': 'Step 1/2: Transcribing raw speech...',
+                'correction': 'Step 2/2: Correcting with AI...',
+                'processing': 'Processing your speech...'
+            };
+
+            for (let attempt = 0; attempt < maxAttempts; attempt++) {
+                try {
+                    const resp = await fetch(`/transcribe-status/${taskId}`, {
+                        headers: { 'ngrok-skip-browser-warning': 'true' }
+                    });
+
+                    if (!resp.ok && resp.status !== 500) {
+                        // Task not found or server issue
+                        throw new Error(`Poll failed with status ${resp.status}`);
+                    }
+
+                    const data = await resp.json();
+
+                    if (data.status === 'done') {
+                        return data; // Success!
+                    } else if (data.status === 'error') {
+                        throw new Error(data.error || 'Transcription failed on server');
+                    }
+
+                    // Update UI with current stage
+                    const stageMsg = stageMessages[data.stage] || stageMessages[data.status] || 'Processing...';
+                    statusText.textContent = stageMsg;
+
+                } catch (pollErr) {
+                    if (attempt >= maxAttempts - 1) throw pollErr;
+                    // Network hiccup — wait and retry
+                }
+
+                // Wait 2 seconds between polls
+                await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+
+            throw new Error('Transcription timed out. Please try again.');
+        }
+
+        // --- FETCH WITH TIMEOUT helper ---
+        async function fetchWithTimeout(url, options, timeoutMs = 120000) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+            
+            try {
+                const response = await fetch(url, {
+                    ...options,
+                    signal: controller.signal
+                });
+                return response;
+            } catch (err) {
+                if (err.name === 'AbortError') {
+                    throw new Error('Request timed out. The server took too long to respond. Please try a shorter recording.');
+                }
+                throw err;
+            } finally {
+                clearTimeout(timeoutId);
+            }
+        }
+
         // Send Audio Payload to Flask Backend
-        async function sendAudioToBackend(audioBlob) {
+        async function sendAudioToBackend(audioBlob, retryCount = 0) {
             recordBtnContainer.style.display = 'none';
             loadingSpinner.style.display = 'flex';
-            statusText.textContent = 'Transcribing using Gemini...';
+            
+            const blobSizeKB = Math.round(audioBlob.size / 1024);
+            statusText.textContent = IS_MOBILE 
+                ? `Uploading ${blobSizeKB}KB audio...`
+                : 'Transcribing using Gemini...';
             
             const formData = new FormData();
             
@@ -1161,14 +1247,19 @@
             
             formData.append('audio', audioBlob, `speech.${extension}`);
 
+            // Mobile always uses async mode to avoid Render's 30s timeout
+            if (IS_MOBILE) {
+                formData.append('mode', 'async');
+            }
+
             try {
-                const response = await fetch('/transcribe', {
+                // Upload with timeout (30s for upload, which is generous)
+                const uploadTimeout = IS_MOBILE ? 25000 : 120000;
+                const response = await fetchWithTimeout('/transcribe', {
                     method: 'POST',
-                    headers: {
-                        'ngrok-skip-browser-warning': 'true'
-                    },
+                    headers: { 'ngrok-skip-browser-warning': 'true' },
                     body: formData
-                });
+                }, uploadTimeout);
 
                 if (!response.ok) {
                     let errText = `Transcription failed with status ${response.status}`;
@@ -1180,21 +1271,49 @@
                 }
 
                 const data = await response.json();
-                rawResultBox.textContent = data.raw_transcription || "No raw phonetics captured.";
-                resultBox.textContent = data.transcription;
-                lastTranscribedAudioId = data.audio_id;
+
+                if (data.task_id) {
+                    // --- ASYNC MODE: Poll for results ---
+                    statusText.textContent = 'Processing your speech...';
+                    const result = await pollTranscriptionStatus(data.task_id);
+                    
+                    rawResultBox.textContent = result.raw_transcription || "No raw phonetics captured.";
+                    resultBox.textContent = result.transcription;
+                    lastTranscribedAudioId = result.audio_id;
+                } else {
+                    // --- SYNC MODE: Direct result ---
+                    rawResultBox.textContent = data.raw_transcription || "No raw phonetics captured.";
+                    resultBox.textContent = data.transcription;
+                    lastTranscribedAudioId = data.audio_id;
+                }
+
                 resultSection.style.display = 'block';
                 statusText.textContent = 'Transcription complete!';
+                hideAlert();
                 
                 // Reset correction UI state
                 correctionContainer.style.display = 'none';
                 editBtnText.textContent = 'Correct';
                 editBtn.style.background = '';
                 editBtn.style.color = '';
+
             } catch (error) {
                 console.error("Fetch error:", error);
+                
+                // Auto-retry once on mobile network failures
+                if (retryCount < 1 && IS_MOBILE && (
+                    error.message.includes('Failed to fetch') || 
+                    error.message.includes('timed out') ||
+                    error.message.includes('NetworkError')
+                )) {
+                    console.log('Mobile network error, retrying...');
+                    statusText.textContent = 'Connection hiccup — retrying...';
+                    await new Promise(resolve => setTimeout(resolve, 1500));
+                    return sendAudioToBackend(audioBlob, retryCount + 1);
+                }
+
                 showAlert(error.message || "Could not connect to the transcription backend server.");
-                statusText.textContent = 'Connection error';
+                statusText.textContent = 'Connection error — tap to try again';
             } finally {
                 loadingSpinner.style.display = 'none';
                 recordBtnContainer.style.display = 'flex';

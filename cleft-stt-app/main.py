@@ -22,6 +22,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max upload size
 
 # Directory paths
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -439,50 +440,20 @@ def generate_content_with_backoff(model, contents, generation_config=None):
                 raise e
 
 # --- 3. TWO-STAGE CORRECTION PIPELINE ---
-@app.route('/transcribe', methods=['POST'])
-def transcribe():
-    """Endpoint to receive recording, run Step A (raw STT) and Step B (Gemini 2.5 Flash correction)."""
-    if 'audio' not in request.files:
-        return jsonify({"error": "No audio file provided in request."}), 400
 
-    audio_file = request.files['audio']
-    if audio_file.filename == '':
-        return jsonify({"error": "Empty audio file."}), 400
+# Background task storage for async transcription (mobile-friendly)
+_transcription_tasks = {}
+_task_lock = threading.Lock()
 
-    temp_local_path = None
+def _run_transcription_pipeline(task_id, audio_bytes, mime_type, history_filename, temp_local_path):
+    """Run the full STT + Correction pipeline in a background thread.
+    This prevents Render's 30s request timeout from killing mobile requests."""
     try:
-        # Derive MIME type from the request Content-Type header (most reliable for browser blobs)
-        # Falls back to filename extension, then hard-defaults to audio/webm
-        content_type_header = audio_file.content_type or ''
-        if content_type_header and content_type_header != 'application/octet-stream':
-            mime_type = content_type_header.split(';')[0].strip()
-        else:
-            raw_name = audio_file.filename or ''
-            ext = os.path.splitext(raw_name.split('?')[0])[1].lower()
-            mime_type = get_mime_type(f'audio{ext}') if ext else 'audio/webm'
-
-        # Map mime_type to a clean file suffix for local storage
-        mime_to_ext = {
-            'audio/webm': '.webm', 'audio/wav': '.wav', 'audio/mpeg': '.mp3',
-            'audio/mp4': '.mp4', 'audio/ogg': '.ogg', 'audio/flac': '.flac',
-            'audio/aac': '.aac', 'audio/m4a': '.m4a',
-        }
-        suffix = mime_to_ext.get(mime_type, '.webm')
-        timestamp = int(time.time() * 1000)
-        history_filename = f"history_{timestamp}{suffix}"
-        temp_local_path = os.path.join(HISTORY_DIR, history_filename)
-
-        # Read the raw audio bytes dynamically using BytesIO to avoid heavy cloning
-        audio_stream = io.BytesIO()
-        audio_file.save(audio_stream)
-        audio_bytes = audio_stream.getvalue()
-
-        # Save to disk asynchronously in a background thread to prevent blocking
-        save_file_nonblocking(audio_bytes, temp_local_path)
-        logger.info(f"Saved incoming audio to history: {temp_local_path} (mime={mime_type})")
+        with _task_lock:
+            _transcription_tasks[task_id] = {"status": "processing", "stage": "stt"}
 
         # --- STEP A: High-Speed Raw STT Layer ---
-        logger.info("Step A: Running high-speed raw STT...")
+        logger.info(f"[{task_id}] Step A: Running high-speed raw STT...")
         stt_prompt = (
             "You are a rapid speech-to-text transcriber. Transcribe the following audio file exactly as it sounds, "
             "capturing the raw phonetics, even if there are speech distortions, cleft palate nasalizations, or unclear words. "
@@ -490,7 +461,6 @@ def transcribe():
             "No conversational filler, no introductory text."
         )
 
-        # Configure the active key from the rotation pool, then instantiate model
         with client_lock:
             genai.configure(api_key=get_next_api_key())
         model = genai.GenerativeModel('gemini-2.5-flash')
@@ -506,16 +476,17 @@ def transcribe():
         try:
             raw_phonetic_text = stt_response.text.strip()
         except ValueError:
-            # If safety filters somehow still block or prompt fails, catch gracefully
             raw_phonetic_text = "[Transcription blocked or failed]"
-            logger.warning("Step A STT failed to return valid text. Response may have been blocked.")
-            
-        logger.info(f"Step A Raw phonetic text: '{raw_phonetic_text}'")
+            logger.warning(f"[{task_id}] Step A STT failed to return valid text.")
 
-        # --- STEP B: Text Correction Pipeline using Gemini 2.5 Flash ---
-        logger.info("Step B: Running text correction pipeline...")
-        
-        # Load recent history (up to 5 most recent corrections) to teach the model on-the-fly
+        logger.info(f"[{task_id}] Step A Raw phonetic text: '{raw_phonetic_text}'")
+
+        with _task_lock:
+            _transcription_tasks[task_id]["stage"] = "correction"
+
+        # --- STEP B: Text Correction Pipeline ---
+        logger.info(f"[{task_id}] Step B: Running text correction pipeline...")
+
         history_map = load_history_map()
         recent_history = list(history_map.values())[-5:]
         recent_history_str = ""
@@ -536,19 +507,15 @@ def transcribe():
             "Return ONLY the completely corrected text. Do not include any explanations, preamble, or formatting."
         )
 
-        # Dynamic Configuration Loading: read rules inside route on every single request
         learned_rules = ""
         if os.path.exists(PHONETIC_RULES_PATH):
             try:
-                # Read using thread pool to avoid blocking the main thread execution context
-                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                    future = executor.submit(lambda: open(PHONETIC_RULES_PATH, 'r', encoding='utf-8').read())
-                    learned_rules = future.result().strip()
+                with open(PHONETIC_RULES_PATH, 'r', encoding='utf-8') as f:
+                    learned_rules = f.read().strip()
             except Exception as e:
                 print(f"CRITICAL ERROR [Phonetic Rules Dynamic Read]: {str(e)}")
                 logger.error(f"Error loading phonetic rules file dynamically: {e}")
 
-        # Incorporate learned phonetic rules dynamically if they exist
         profile_content = VOICE_LINGUISTIC_PROFILE
         if learned_rules:
             profile_content += f"\nLEARNED PHONETIC MAPPING RULES (AUTOMATICALLY DISCOVERED):\n{learned_rules}\n"
@@ -565,11 +532,10 @@ INPUT RAW PHONETIC TEXT TO CORRECT:
 CORRECTED TEXT:
 """
 
-        # Configure the active key from the rotation pool, then instantiate model
         with client_lock:
             genai.configure(api_key=get_next_api_key())
         model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=system_instruction)
-        
+
         correction_response = generate_content_with_backoff(
             model=model,
             contents=prompt_content,
@@ -579,18 +545,193 @@ CORRECTED TEXT:
             transcription = correction_response.text.strip()
         except ValueError:
             transcription = "I'm sorry, the audio could not be properly transcribed due to unclear phonetics or safety constraints."
-            logger.warning("Step B Correction failed to return valid text.")
-            
-        logger.info(f"Step B Corrected transcription: '{transcription}'")
+            logger.warning(f"[{task_id}] Step B Correction failed to return valid text.")
 
-        # Save record of both raw phonetic and corrected texts to sync history backend
+        logger.info(f"[{task_id}] Step B Corrected transcription: '{transcription}'")
+
         save_history_entry(history_filename, raw_phonetic_text, transcription)
 
-        return jsonify({
-            "raw_transcription": raw_phonetic_text,
-            "transcription": transcription,
-            "audio_id": history_filename
-        })
+        with _task_lock:
+            _transcription_tasks[task_id] = {
+                "status": "done",
+                "raw_transcription": raw_phonetic_text,
+                "transcription": transcription,
+                "audio_id": history_filename
+            }
+
+    except Exception as e:
+        logger.error(f"[{task_id}] CRITICAL ERROR [Background Pipeline]: {type(e).__name__}: {str(e)}", exc_info=True)
+        with _task_lock:
+            _transcription_tasks[task_id] = {
+                "status": "error",
+                "error": f"{type(e).__name__}: {str(e)}"
+            }
+
+
+@app.route('/transcribe', methods=['POST'])
+def transcribe():
+    """Endpoint to receive recording, run Step A (raw STT) and Step B (Gemini 2.5 Flash correction).
+    Supports two modes:
+    - mode=async (default on mobile): Returns a task_id immediately, client polls /transcribe-status
+    - mode=sync: Runs the full pipeline synchronously (legacy behavior for fast connections)
+    """
+    if 'audio' not in request.files:
+        return jsonify({"error": "No audio file provided in request."}), 400
+
+    audio_file = request.files['audio']
+    if audio_file.filename == '':
+        return jsonify({"error": "Empty audio file."}), 400
+
+    # Detect if client wants async mode (mobile sends this)
+    async_mode = request.form.get('mode', 'sync') == 'async'
+
+    try:
+        content_type_header = audio_file.content_type or ''
+        if content_type_header and content_type_header != 'application/octet-stream':
+            mime_type = content_type_header.split(';')[0].strip()
+        else:
+            raw_name = audio_file.filename or ''
+            ext = os.path.splitext(raw_name.split('?')[0])[1].lower()
+            mime_type = get_mime_type(f'audio{ext}') if ext else 'audio/webm'
+
+        mime_to_ext = {
+            'audio/webm': '.webm', 'audio/wav': '.wav', 'audio/mpeg': '.mp3',
+            'audio/mp4': '.mp4', 'audio/ogg': '.ogg', 'audio/flac': '.flac',
+            'audio/aac': '.aac', 'audio/m4a': '.m4a',
+        }
+        suffix = mime_to_ext.get(mime_type, '.webm')
+        timestamp = int(time.time() * 1000)
+        history_filename = f"history_{timestamp}{suffix}"
+        temp_local_path = os.path.join(HISTORY_DIR, history_filename)
+
+        audio_stream = io.BytesIO()
+        audio_file.save(audio_stream)
+        audio_bytes = audio_stream.getvalue()
+
+        # Reject extremely small audio (likely empty/corrupt)
+        if len(audio_bytes) < 1000:
+            return jsonify({"error": "Audio file too small. Please record for at least 2 seconds."}), 400
+
+        save_file_nonblocking(audio_bytes, temp_local_path)
+        logger.info(f"Saved incoming audio to history: {temp_local_path} (mime={mime_type}, size={len(audio_bytes)} bytes, async={async_mode})")
+
+        if async_mode:
+            # --- ASYNC MODE: Return task_id immediately, process in background ---
+            task_id = f"task_{timestamp}"
+            with _task_lock:
+                _transcription_tasks[task_id] = {"status": "uploading"}
+
+            thread = threading.Thread(
+                target=_run_transcription_pipeline,
+                args=(task_id, audio_bytes, mime_type, history_filename, temp_local_path),
+                daemon=True
+            )
+            thread.start()
+
+            return jsonify({"task_id": task_id, "status": "processing"}), 202
+
+        else:
+            # --- SYNC MODE: Legacy behavior for fast PC connections ---
+            logger.info("Step A: Running high-speed raw STT...")
+            stt_prompt = (
+                "You are a rapid speech-to-text transcriber. Transcribe the following audio file exactly as it sounds, "
+                "capturing the raw phonetics, even if there are speech distortions, cleft palate nasalizations, or unclear words. "
+                "Do not attempt to fix grammar, spelling, or meaning. Return ONLY the raw transcribed text. "
+                "No conversational filler, no introductory text."
+            )
+
+            with client_lock:
+                genai.configure(api_key=get_next_api_key())
+            model = genai.GenerativeModel('gemini-2.5-flash')
+            contents = [
+                {"mime_type": mime_type, "data": audio_bytes},
+                stt_prompt
+            ]
+            stt_response = generate_content_with_backoff(
+                model=model,
+                contents=contents,
+                generation_config={'temperature': 0.0}
+            )
+            try:
+                raw_phonetic_text = stt_response.text.strip()
+            except ValueError:
+                raw_phonetic_text = "[Transcription blocked or failed]"
+                logger.warning("Step A STT failed to return valid text. Response may have been blocked.")
+
+            logger.info(f"Step A Raw phonetic text: '{raw_phonetic_text}'")
+
+            logger.info("Step B: Running text correction pipeline...")
+
+            history_map = load_history_map()
+            recent_history = list(history_map.values())[-5:]
+            recent_history_str = ""
+            if recent_history:
+                recent_history_str = "\n".join([
+                    f"Raw Phonetic: \"{item.get('raw_text', '')}\" -> Corrected Intent: \"{item.get('corrected_text', '')}\""
+                    for item in recent_history if item.get('corrected_text')
+                ])
+            else:
+                recent_history_str = "No recent history available."
+
+            system_instruction = (
+                "You are an expert assistive cleft palate speech correction assistant.\n"
+                "Your task is to take a raw, phonetic transcription (which is distorted due to cleft palate speech patterns) "
+                "and output the corrected, intended text.\n"
+                "Use the provided voice linguistic profile, calibration text sentences, and recent correction history "
+                "to map the phonetic distortions back to the correct English phrase.\n"
+                "Return ONLY the completely corrected text. Do not include any explanations, preamble, or formatting."
+            )
+
+            learned_rules = ""
+            if os.path.exists(PHONETIC_RULES_PATH):
+                try:
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                        future = executor.submit(lambda: open(PHONETIC_RULES_PATH, 'r', encoding='utf-8').read())
+                        learned_rules = future.result().strip()
+                except Exception as e:
+                    print(f"CRITICAL ERROR [Phonetic Rules Dynamic Read]: {str(e)}")
+                    logger.error(f"Error loading phonetic rules file dynamically: {e}")
+
+            profile_content = VOICE_LINGUISTIC_PROFILE
+            if learned_rules:
+                profile_content += f"\nLEARNED PHONETIC MAPPING RULES (AUTOMATICALLY DISCOVERED):\n{learned_rules}\n"
+
+            prompt_content = f"""
+{profile_content}
+
+RECENT CORRECTION HISTORY (Examples of successful corrections):
+{recent_history_str}
+
+INPUT RAW PHONETIC TEXT TO CORRECT:
+"{raw_phonetic_text}"
+
+CORRECTED TEXT:
+"""
+
+            with client_lock:
+                genai.configure(api_key=get_next_api_key())
+            model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=system_instruction)
+
+            correction_response = generate_content_with_backoff(
+                model=model,
+                contents=prompt_content,
+                generation_config={'temperature': 0.0}
+            )
+            try:
+                transcription = correction_response.text.strip()
+            except ValueError:
+                transcription = "I'm sorry, the audio could not be properly transcribed due to unclear phonetics or safety constraints."
+                logger.warning("Step B Correction failed to return valid text.")
+
+            logger.info(f"Step B Corrected transcription: '{transcription}'")
+
+            save_history_entry(history_filename, raw_phonetic_text, transcription)
+
+            return jsonify({
+                "raw_transcription": raw_phonetic_text,
+                "transcription": transcription,
+                "audio_id": history_filename
+            })
 
     except GoogleAPIError as gae:
         logger.error(f"CRITICAL ERROR [Gemini API Request]: {str(gae)}", exc_info=True)
@@ -598,6 +739,29 @@ CORRECTED TEXT:
     except Exception as e:
         logger.error(f"CRITICAL ERROR [Transcription Pipeline]: {type(e).__name__}: {str(e)}", exc_info=True)
         return jsonify({"error": f"{type(e).__name__}: {str(e)}"}), 500
+
+
+@app.route('/transcribe-status/<task_id>', methods=['GET'])
+def transcribe_status(task_id):
+    """Poll endpoint for async transcription tasks (mobile-friendly)."""
+    with _task_lock:
+        task = _transcription_tasks.get(task_id)
+    
+    if not task:
+        return jsonify({"error": "Task not found"}), 404
+    
+    if task["status"] == "done":
+        # Clean up completed task after retrieval
+        with _task_lock:
+            _transcription_tasks.pop(task_id, None)
+        return jsonify(task)
+    elif task["status"] == "error":
+        with _task_lock:
+            _transcription_tasks.pop(task_id, None)
+        return jsonify(task), 500
+    else:
+        # Still processing
+        return jsonify({"status": task["status"], "stage": task.get("stage", "uploading")})
 
 @app.route('/save-correction', methods=['POST'])
 def save_correction():
