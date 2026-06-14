@@ -1176,9 +1176,13 @@
             hideAlert();
             audioChunks = [];
 
-            // Secure Context check
+            // Secure Context check — mobile browsers BLOCK microphone on non-HTTPS
+            if (!window.isSecureContext) {
+                showAlert("⚠️ Microphone requires HTTPS. Please access this app via the Render URL (https://...), not http://.");
+                return;
+            }
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                showAlert("Microphone access is only allowed in secure contexts (localhost or HTTPS). If accessing this app from a mobile browser on your local network, check the instructions to enable insecure origin flags.");
+                showAlert("Microphone access is not available. Ensure you are on HTTPS and have granted permissions.");
                 return;
             }
 
@@ -1265,8 +1269,20 @@
             }
         });
 
-        // --- ASYNC POLLING for mobile transcription ---
+        // --- ASYNC POLLING with visibility-aware resume ---
+        // Mobile OS freezes timers when tab is backgrounded.
+        // We use Page Visibility API to detect when the user returns.
+        let _activePollingTaskId = null;
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && _activePollingTaskId) {
+                console.log('Tab resumed from background, polling will continue...');
+                statusText.textContent = 'Resuming transcription check...';
+            }
+        });
+
         async function pollTranscriptionStatus(taskId, maxAttempts = 90) {
+            _activePollingTaskId = taskId;
             const stageMessages = {
                 'uploading': 'Uploading audio to server...',
                 'stt': 'Step 1/2: Transcribing raw speech...',
@@ -1275,6 +1291,21 @@
             };
 
             for (let attempt = 0; attempt < maxAttempts; attempt++) {
+                // If tab is hidden (deep sleep), wait for it to become visible
+                if (document.visibilityState === 'hidden') {
+                    await new Promise(resolve => {
+                        const handler = () => {
+                            if (document.visibilityState === 'visible') {
+                                document.removeEventListener('visibilitychange', handler);
+                                resolve();
+                            }
+                        };
+                        document.addEventListener('visibilitychange', handler);
+                        // Safety: also resolve after 30s in case visibility never changes
+                        setTimeout(resolve, 30000);
+                    });
+                }
+
                 try {
                     const resp = await fetch(`/transcribe-status/${taskId}`, {
                         headers: { 'ngrok-skip-browser-warning': 'true' }
@@ -1287,8 +1318,10 @@
                     const data = await resp.json();
 
                     if (data.status === 'done') {
+                        _activePollingTaskId = null;
                         return data;
                     } else if (data.status === 'error') {
+                        _activePollingTaskId = null;
                         throw new Error(data.error || 'Transcription failed on server');
                     }
 
@@ -1296,12 +1329,16 @@
                     statusText.textContent = stageMsg;
 
                 } catch (pollErr) {
-                    if (attempt >= maxAttempts - 1) throw pollErr;
+                    if (attempt >= maxAttempts - 1) {
+                        _activePollingTaskId = null;
+                        throw pollErr;
+                    }
                 }
 
                 await new Promise(resolve => setTimeout(resolve, 2000));
             }
 
+            _activePollingTaskId = null;
             throw new Error('Transcription timed out. Please try again.');
         }
 
@@ -1338,6 +1375,14 @@
             
             const formData = new FormData();
             
+            // Guard: reject 0-byte or undefined blobs (mic blocked / deep sleep corruption)
+            if (!audioBlob || audioBlob.size === 0) {
+                showAlert('No audio data captured. Ensure microphone permissions are granted.');
+                loadingSpinner.style.display = 'none';
+                recordBtnContainer.style.display = 'flex';
+                return;
+            }
+
             // After normalization, blob is always WAV
             const isWav = audioBlob.type === 'audio/wav' || audioBlob.type === 'audio/wave';
             const extension = isWav ? 'wav' : 'webm';
