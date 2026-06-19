@@ -615,10 +615,11 @@ def _run_transcription_pipeline(task_id, audio_bytes, mime_type, history_filenam
             recent_history_str = "No recent history available."
 
         system_instruction = (
-            "You are an expert assistive cleft palate speech correction assistant operating under strict protocols.\n"
-            "Your task is to take a raw, phonetic transcription and output the corrected, intended text.\n"
-            "You have a strict SOP (Standard Operating Procedure) for phonetic mapping in front of you. "
-            "You MUST apply this SOP strictly, mapping the phonetic distortions back to the correct English phrase word-by-word.\n"
+            "You are an expert assistive cleft palate speech correction assistant.\n"
+            "Your task is to take a raw, phonetic transcription and output the corrected, intended English text.\n"
+            "You are provided with a Standard Operating Procedure (SOP) for phonetic mapping. Use it as a strong guide, but you have the power of contextual logic.\n"
+            "CRITICAL RULE: If a phonetic sound could map to multiple different words, you MUST use the surrounding context to pick the most logical and nearest intended word.\n"
+            "Do not blindly apply rules if they make the sentence nonsensical. Ensure the final sentence is grammatically correct and natural.\n"
             "Return ONLY the completely corrected text. Do not include any explanations, preamble, or formatting."
         )
 
@@ -800,10 +801,10 @@ def transcribe():
 
             system_instruction = (
                 "You are an expert assistive cleft palate speech correction assistant.\n"
-                "Your task is to take a raw, phonetic transcription (which is distorted due to cleft palate speech patterns) "
-                "and output the corrected, intended text.\n"
-                "Use the provided voice linguistic profile, calibration text sentences, and recent correction history "
-                "to map the phonetic distortions back to the correct English phrase.\n"
+                "Your task is to take a raw, phonetic transcription (which is distorted due to cleft palate speech patterns) and output the corrected, intended English text.\n"
+                "Use the provided voice linguistic profile, calibration text sentences, and recent correction history to map the phonetic distortions.\n"
+                "CRITICAL RULE: If a phonetic sound could map to multiple different words, you MUST use the surrounding context to pick the most logical and nearest intended word.\n"
+                "Do not blindly apply rules if they make the sentence nonsensical. Ensure the final sentence is grammatically correct and natural.\n"
                 "Return ONLY the completely corrected text. Do not include any explanations, preamble, or formatting."
             )
 
