@@ -1284,10 +1284,10 @@
         async function pollTranscriptionStatus(taskId, maxAttempts = 90) {
             _activePollingTaskId = taskId;
             const stageMessages = {
-                'uploading': 'Uploading audio to server...',
-                'stt': 'Step 1/2: Transcribing raw speech...',
-                'correction': 'Step 2/2: Correcting with AI...',
-                'processing': 'Processing your speech...'
+                'uploading': '⬆️ Uploading audio to server...',
+                'stt': '🎙️ Step 1/2: Transcribing raw speech...',
+                'correction': '🧠 Step 2/2: Correcting with Gemini AI...',
+                'processing': '⏳ Processing your speech...'
             };
 
             for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -1369,9 +1369,7 @@
             loadingSpinner.style.display = 'flex';
             
             const blobSizeKB = Math.round(audioBlob.size / 1024);
-            statusText.textContent = IS_MOBILE 
-                ? `Uploading ${blobSizeKB}KB audio...`
-                : 'Transcribing using Gemini...';
+            statusText.textContent = `⬆️ Uploading ${blobSizeKB}KB audio...`;
             
             const formData = new FormData();
             
@@ -1389,10 +1387,8 @@
             
             formData.append('audio', audioBlob, `speech.${extension}`);
 
-            // Mobile always uses async mode to avoid Render's 30s timeout
-            if (IS_MOBILE) {
-                formData.append('mode', 'async');
-            }
+            // Always use async mode for step-by-step progress & to avoid Render's 30s timeout
+            formData.append('mode', 'async');
 
             try {
                 const uploadTimeout = IS_MOBILE ? 25000 : 120000;
@@ -1414,13 +1410,14 @@
                 const data = await response.json();
 
                 if (data.task_id) {
-                    statusText.textContent = 'Processing your speech...';
+                    statusText.textContent = '⏳ Processing your speech...';
                     const result = await pollTranscriptionStatus(data.task_id);
                     
                     rawResultBox.textContent = result.raw_transcription || "No raw phonetics captured.";
                     resultBox.textContent = result.transcription;
                     lastTranscribedAudioId = result.audio_id;
                 } else {
+                    // Sync fallback (shouldn't happen anymore)
                     rawResultBox.textContent = data.raw_transcription || "No raw phonetics captured.";
                     resultBox.textContent = data.transcription;
                     lastTranscribedAudioId = data.audio_id;
