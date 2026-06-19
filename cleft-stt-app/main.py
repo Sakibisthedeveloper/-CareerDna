@@ -125,9 +125,18 @@ This assistant serves a user with cleft palate speech. Due to structural/nasal a
 3. Common phonetic substitutions:
    - "family" may sound like "am-ily", "em-ily", or "ham-ily".
    - "shiny" may sound like "hi-ny" or "i-ny".
-   - "fox" may sound like "fo-" or "hock".
+   - "fox" may sound like "fo-" or "hock" or "soff".
    - "meetings" may sound like "mee-ings" or "mee-tings" with nasal tones.
    - "tasks" may sound like "tah-s" or "tah-ks".
+
+KEY STRUCTURAL PHONETIC PATTERN OBSERVATIONS:
+These global patterns have been calibrated from multiple recorded audio sessions:
+A. The "Th" to "G"/"Ch" Shift: Front dental sounds like "The" or "Through" consistently move toward back-palatal or velar regions, producing sounds like "ga-" or "choo".
+B. The "B/Br" Nasal Shift: Initial Br or B sounds soften into nasal/vowel combinations (Bro → Me-aw, Bruh → Me-ah, Birch → Mish, Bend → Men, Background → Me-background).
+C. Initial S-Cluster Prefix: Words starting with S + hard consonant trigger a soft initial vowel placeholder (Strikes → Is-arts, Stain → Is-tain, Split → Is-plit, Stars → Es-tas, Sky → Es-kai).
+D. Unvoiced Plosive / Dropped Final Consonant: Final trailing hard d, g, x sounds transition to unvoiced t or drop completely (Good → Oot, Dog → Fob, Fox → Soff, Wind → Wine, Jumped → Jam).
+E. Sibilant / Friction Reduction: Words starting with an "S" blend use an introductory air vowel (Stars → Es-tas, Sky → Es-kai, Start → Es-tat).
+F. Compounding Suffix Rule: Words ending in -thing or -down pick up extra placeholder syllables (Everything → En-thing, Locked down → Lock-rah-own).
 
 PERMANENT TEXT CALIBRATION BENCHMARKS:
 Below are the exact phrases the user has recorded for calibration, serving as ground-truth examples of their speech intent:
@@ -143,6 +152,75 @@ Below are the exact phrases the user has recorded for calibration, serving as gr
 - "The total amount is exactly one hundred and twenty-five."
 - "THE house sat the only one in the entire valley on the crest of a low hill. From this height one could see the river and the field of ripe corn dotted with the flowers that always promised a good harvest. The only thing the earth needed was a downpour or at least a shower Throughout the morning Lencho who knew his fields intimately had done nothing else but see the sky towards the north-east."
 - "With a satisfied expression he regarded the field of ripe corn with its flowers, draped in a curtain of rain. But suddenly a strong wind began to blow and along with the rain very large hailstones began to fall. These truly did resemble new silver coins. The boys, exposing themselves to the rain, ran out to collect the frozen pearls."
+- "The prompt summer breeze carries a soft whisper through the trees. Every day, a quick brown fox jumps over the lazy dog, while the bright silver stars start to shine across the quiet sky."
+- "Bro, see, the app is finally live on Render but it failed again with a 500 error. Mann, I thought we fixed this code. Let me check the logs real quick. Bruh, gotcha, it's just a missing database variable. Now it's working perfectly and translating everything. All good."
+- "Bro, I have successfully resolved the issue! The code compiles clean, no errors this time. Mann, look at that, it is working so fast now. All good, everything is locked down. Tell me what you think of this setup, bruh."
+- "When the sunlight strikes raindrops in the air, they act as a prism and form a rainbow. The rainbow is a division of white light into many beautiful colors. These take the shape of a long round arch, with its path high above, and its two ends apparently beyond the horizon. There is, according to legend, a boiling pot of gold at one end. People look, but no one ever finds it."
+- "The birch canoe slid on the smooth planks. Glue the sheet to the dark blue background. A rod is used to catch pink salmon. The ink stain dried on the finished page. Split the log with a quick, sharp blow. The young kid jumped the rusty gate. These thistles bend in a high wind."
+
+CONVERSATIONAL SPEECH TOKEN MAPPINGS (Calibrated from live audio):
+These are exact phonetic-to-intent token mappings discovered from real voice recordings:
+  "Me-aw, see" → "Bro, see"
+  "Me-ah, gotcha" → "Bruh, gotcha"
+  "Me-aw, I have" → "Bro, I have"
+  "ma it fail again" → "but it failed again"
+  "fix-tah-tah-oo code" → "fixed this code"
+  "lots on real quick" → "logs real quick"
+  "en ant-skating en-thing" → "and translating everything"
+  "All oot" → "All good"
+  "successfully resolve-tah issue" → "successfully resolved the issue"
+  "no eren this time" → "no errors this time"
+  "Men, look look at that" → "Mann, look at that"
+  "working so fast-nah" → "working so fast now"
+  "everything is lock-rah-own" → "everything is locked down"
+  "setup, me-ah" → "setup, bruh"
+
+READING PASSAGE TOKEN MAPPINGS (Calibrated from live audio):
+  "ga-ong" → "The prompt"
+  "sama-nee" → "summer breeze"
+  "crees" → "carries"
+  "es-hoff" → "a soft"
+  "wis-ter" → "whisper"
+  "choo" → "through"
+  "ga-ring" → "the trees"
+  "ghey" → "day"
+  "a-wick" → "a quick"
+  "me-laung" → "brown"
+  "soff" → "fox"
+  "fu-gam" → "jumps"
+  "o-wa" → "over"
+  "ga-le-re" → "the lazy"
+  "fob" → "dog"
+  "fwa-la" → "while"
+  "ga-meh" → "the bright"
+  "shil-wa" → "silver"
+  "es-tas" → "stars"
+  "es-tat" → "start"
+  "oo-shai" → "to shine"
+  "a-ga-za" → "across"
+  "waik" → "quiet"
+  "es-kai" → "sky"
+  "is-arts for raindrops" → "strikes raindrops"
+  "act as a pis-m" → "act as a prism"
+  "ka rainbow is a-givision" → "The rainbow is a division"
+  "into many mi-fo colors" → "into many beautiful colors"
+  "high e-bove" → "high above"
+  "ap-per-en-ly beyond" → "apparently beyond"
+  "boiling op-pot of gold" → "boiling pot of gold"
+  "no one eh-ver finds it" → "no one ever finds it"
+  "The mish canoe" → "The birch canoe"
+  "sulit over the smooth planks" → "slid on the smooth planks"
+  "dark blue me-background" → "dark blue background"
+  "A rot is use to catch" → "A rod is used to catch"
+  "pink sar-men" → "pink salmon"
+  "The ink is-tain dried" → "The ink stain dried"
+  "finish peace" → "finished page"
+  "Is-plit the log" → "Split the log"
+  "quick sharp lo" → "quick, sharp blow"
+  "The young-it jam" → "The young kid jumped"
+  "the rusty-get" → "the rusty gate"
+  "this his-tels men" → "These thistles bend"
+  "in the high wine" → "in a high wind"
 """
 
 def get_mime_type(filename):

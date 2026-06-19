@@ -1,1 +1,121 @@
+
+=== GLOBAL PHONETIC PATTERN RULES ===
+PATTERN 1 — The "Th" to "G" / "Ch" Shift:
+  Front dental sounds like "The" or "Through" consistently move toward back-palatal or velar regions, producing sound roots like "ga-" or "choo".
+PATTERN 2 — The "B/Br" Nasal Shift:
+  Initial Br or B sounds at the start of a word or phrase soften into a nasal/vowel combination (Me-aw, Me-ah, Mish, Men, Me-).
+PATTERN 3 — Initial S-Cluster Prefix:
+  Words starting with S combined with a hard consonant (strikes, stain, split, stars, sky) trigger a soft initial vowel placeholder (is-arts, is-tain, is-plit, es-tas, es-kai).
+PATTERN 4 — Unvoiced Plosive / Dropped Final Consonant:
+  Final trailing hard d, g, x sounds transition to unvoiced t or drop completely (good → oot, dog → fob, fox → soff, wind → wine, jumped → jam).
+PATTERN 5 — Sibilant / Friction Reduction:
+  Words starting with an "S" blend use an introductory air vowel to push the friction forward (stars → es-tas, sky → es-kai, start → es-tat).
+PATTERN 6 — Compounding Suffix Rule:
+  Words ending in -thing or -down sometimes pick up an extra placeholder syllable before the word ends (everything → en-thing, locked down → lock-rah-own).
+
+=== EXACT TOKEN-MAPPING DICTIONARY ===
+
+--- Original Script (Summer Breeze Passage) ---
+- If sound is [ga-ong] -> translates to: [The prompt]
+- If sound is [sama-nee] -> translates to: [summer breeze]
+- If sound is [crees] -> translates to: [carries]
+- If sound is [es-hoff] -> translates to: [a soft]
+- If sound is [wis-ter] -> translates to: [whisper]
+- If sound is [choo] -> translates to: [through]
+- If sound is [ga-ring] -> translates to: [the trees]
+- If sound is [e-re] -> translates to: [Every]
+- If sound is [ghey] -> translates to: [day]
+- If sound is [a-wick] -> translates to: [a quick]
+- If sound is [me-laung] -> translates to: [brown]
+- If sound is [soff] -> translates to: [fox]
+- If sound is [fu-gam] -> translates to: [jumps]
+- If sound is [o-wa] -> translates to: [over]
+- If sound is [ga-le-re] -> translates to: [the lazy]
+- If sound is [fob] -> translates to: [dog]
+- If sound is [fwa-la] -> translates to: [while]
+- If sound is [ga-meh] -> translates to: [the bright]
+- If sound is [shil-wa] -> translates to: [silver]
+- If sound is [es-tas] -> translates to: [stars]
+- If sound is [es-tat] -> translates to: [start]
+- If sound is [oo-shai] -> translates to: [to shine]
+- If sound is [a-ga-za] -> translates to: [across]
+- If sound is [waik] -> translates to: [quiet]
+- If sound is [es-kai] -> translates to: [sky]
+
+--- Cleft 2 (Conversational Dev Style — Render Debug) ---
+- If sound is [Me-aw, see] -> translates to: [Bro, see]
+- If sound is [ma it fail again] -> translates to: [but it failed again]
+- If sound is [fix-tah-tah-oo code] -> translates to: [fixed this code]
+- If sound is [lots on real quick] -> translates to: [logs real quick]
+- If sound is [Me-ah, gotcha] -> translates to: [Bruh, gotcha]
+- If sound is [en ant-skating en-thing] -> translates to: [and translating everything]
+- If sound is [All oot] -> translates to: [All good]
+
+--- Cleft 3 (Conversational Dev Style — Celebrate Win) ---
+- If sound is [Me-aw, I have] -> translates to: [Bro, I have]
+- If sound is [successfully resolve-tah issue] -> translates to: [successfully resolved the issue]
+- If sound is [no eren this time] -> translates to: [no errors this time]
+- If sound is [Men, look look at that] -> translates to: [Mann, look at that]
+- If sound is [working so fast-nah] -> translates to: [working so fast now]
+- If sound is [everything is lock-rah-own] -> translates to: [everything is locked down]
+- If sound is [setup, me-ah] -> translates to: [setup, bruh]
+
+--- Rainbow Passage (Standard Reading) ---
+- If sound is [is-arts for raindrops] -> translates to: [strikes raindrops]
+- If sound is [act as a pis-m] -> translates to: [act as a prism]
+- If sound is [ka rainbow is a-givision] -> translates to: [The rainbow is a division]
+- If sound is [into many mi-fo colors] -> translates to: [into many beautiful colors]
+- If sound is [high e-bove] -> translates to: [high above]
+- If sound is [ap-per-en-ly beyond] -> translates to: [apparently beyond]
+- If sound is [boiling op-pot of gold] -> translates to: [boiling pot of gold]
+- If sound is [no one eh-ver finds it] -> translates to: [no one ever finds it]
+
+--- Birch Canoe (Rare Phonetic Sentences) ---
+- If sound is [The mish canoe] -> translates to: [The birch canoe]
+- If sound is [sulit over the smooth planks] -> translates to: [slid on the smooth planks]
+- If sound is [dark blue me-background] -> translates to: [dark blue background]
+- If sound is [A rot is use to catch] -> translates to: [A rod is used to catch]
+- If sound is [pink sar-men] -> translates to: [pink salmon]
+- If sound is [The ink is-tain dried] -> translates to: [The ink stain dried]
+- If sound is [finish peace] -> translates to: [finished page]
+- If sound is [Is-plit the log] -> translates to: [Split the log]
+- If sound is [quick sharp lo] -> translates to: [quick, sharp blow]
+- If sound is [The young-it jam] -> translates to: [The young kid jumped]
+- If sound is [the rusty-get] -> translates to: [the rusty gate]
+- If sound is [this his-tels men] -> translates to: [These thistles bend]
+- If sound is [in the high wine] -> translates to: [in a high wind]
+
+=== PREVIOUSLY LEARNED RULES (Auto-discovered) ===
+- If sound is ['sk-skuh-yooz] -> translates to: [excuse]
+- If sound is [(nn)thiz] -> translates to: [this]
+- If sound is [H-m-m-low] -> translates to: [Hello]
+- If sound is [Uh-m] -> translates to: [I]
+- If sound is [Uh... m-m-mmm...] -> translates to: [Um]
+- If sound is [Y'kno'] -> translates to: [You know]
+- If sound is [b-n-z-n-ee] -> translates to: [busy]
+- If sound is [buh] -> translates to: [but]
+- If sound is [duh] -> translates to: [to]
+- If sound is [gonna] -> translates to: [going to]
+- If sound is [h-n-eer] -> translates to: [hear]
 - If sound is [ham-ily] -> translates to: [family]
+- If sound is [k-n-n] -> translates to: [can]
+- If sound is [k-n-ol] -> translates to: [call]
+- If sound is [kinda] -> translates to: [kind of]
+- If sound is [l-n-n] -> translates to: [line]
+- If sound is [li'l] -> translates to: [little]
+- If sound is [m-ee] -> translates to: [me]
+- If sound is [meee] -> translates to: [me]
+- If sound is [n-er-l-yuh] -> translates to: [earlier]
+- If sound is [neeed] -> translates to: [need]
+- If sound is [prah-blem] -> translates to: [problem]
+- If sound is [r-ree-ly] -> translates to: [really]
+- If sound is [sumpin'] -> translates to: [something]
+- If sound is [t-t'assk-k] -> translates to: [to ask]
+- If sound is [thinn-g] -> translates to: [thing]
+- If sound is [thiz] -> translates to: [this]
+- If sound is [thuh] -> translates to: [the]
+- If sound is [tr-n-ing] -> translates to: [trying]
+- If sound is [unintelligible] -> translates to: [going to]
+- If sound is [wuz] -> translates to: [was]
+- If sound is [yeh] -> translates to: [yeah]
+- If sound is [yuh] -> translates to: [you]
