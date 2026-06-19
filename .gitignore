@@ -1,6 +1,12 @@
 node_modules
 .next
 .env.local
+.env
+.env.*
+*.env
 tsconfig.tsbuildinfo
 __pycache__/
 *.pyc
+cleft-stt-app/data/history_map.json
+cleft-stt-app/data/history/
+cleft-stt-app/data/calibration/

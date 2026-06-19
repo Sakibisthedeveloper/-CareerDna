@@ -858,10 +858,10 @@ CORRECTED TEXT:
 
     except GoogleAPIError as gae:
         logger.error(f"CRITICAL ERROR [Gemini API Request]: {str(gae)}", exc_info=True)
-        return jsonify({"error": f"Gemini API Error: {str(gae)}"}), 502
+        return jsonify({"error": "Speech processing service temporarily unavailable. Please try again."}), 502
     except Exception as e:
         logger.error(f"CRITICAL ERROR [Transcription Pipeline]: {type(e).__name__}: {str(e)}", exc_info=True)
-        return jsonify({"error": f"{type(e).__name__}: {str(e)}"}), 500
+        return jsonify({"error": "An internal error occurred during transcription. Please try again."}), 500
 
 
 @app.route('/transcribe-status/<task_id>', methods=['GET'])
@@ -922,8 +922,8 @@ def save_correction():
         print(f"CRITICAL ERROR [Save Correction]: {str(e)}")
         logger.error(f"Error saving correction for {audio_id}: {e}", exc_info=True)
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Failed to save correction. Please try again."}), 500
 
 if __name__ == '__main__':
     logger.info("Starting Resonate cleft-stt-app server...")
-    app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)
+    app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
