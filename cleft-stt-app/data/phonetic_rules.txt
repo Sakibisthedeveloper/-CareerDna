@@ -15,32 +15,6 @@ PATTERN 6 — Compounding Suffix Rule:
 
 === EXACT TOKEN-MAPPING DICTIONARY ===
 
---- Original Script (Summer Breeze Passage) ---
-- If sound is [ga-ong] -> translates to: [The prompt]
-- If sound is [sama-nee] -> translates to: [summer breeze]
-- If sound is [crees] -> translates to: [carries]
-- If sound is [es-hoff] -> translates to: [a soft]
-- If sound is [wis-ter] -> translates to: [whisper]
-- If sound is [choo] -> translates to: [through]
-- If sound is [ga-ring] -> translates to: [the trees]
-- If sound is [e-re] -> translates to: [Every]
-- If sound is [ghey] -> translates to: [day]
-- If sound is [a-wick] -> translates to: [a quick]
-- If sound is [me-laung] -> translates to: [brown]
-- If sound is [soff] -> translates to: [fox]
-- If sound is [fu-gam] -> translates to: [jumps]
-- If sound is [o-wa] -> translates to: [over]
-- If sound is [ga-le-re] -> translates to: [the lazy]
-- If sound is [fob] -> translates to: [dog]
-- If sound is [fwa-la] -> translates to: [while]
-- If sound is [ga-meh] -> translates to: [the bright]
-- If sound is [shil-wa] -> translates to: [silver]
-- If sound is [es-tas] -> translates to: [stars]
-- If sound is [es-tat] -> translates to: [start]
-- If sound is [oo-shai] -> translates to: [to shine]
-- If sound is [a-ga-za] -> translates to: [across]
-- If sound is [waik] -> translates to: [quiet]
-- If sound is [es-kai] -> translates to: [sky]
 
 --- Cleft 2 (Conversational Dev Style — Render Debug) ---
 - If sound is [Me-aw, see] -> translates to: [Bro, see]
