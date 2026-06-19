@@ -2,6 +2,7 @@ import os
 import sys
 import time
 import traceback
+import re
 
 import json
 import logging
@@ -11,6 +12,7 @@ import base64
 import requests
 import io
 import concurrent.futures
+from datetime import datetime, timedelta, timezone
 from flask import Flask, request, jsonify, render_template
 from werkzeug.middleware.proxy_fix import ProxyFix
 from dotenv import load_dotenv
@@ -923,6 +925,156 @@ def save_correction():
         logger.error(f"Error saving correction for {audio_id}: {e}", exc_info=True)
         traceback.print_exc()
         return jsonify({"error": "Failed to save correction. Please try again."}), 500
+
+# --- EMBEDDED BACKGROUND LEARNING AGENT ---
+# This runs as a daemon thread inside the main gunicorn process.
+# Previously learn_agent.py was a separate script but the Procfile never started it,
+# so the learning loop was completely broken on Render.
+
+def _learning_agent_fetch_history():
+    """Poll Supabase for recent speech history (last 24 hours)."""
+    supabase_client = get_supabase_client()
+    if not supabase_client:
+        return []
+    try:
+        time_threshold = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+        logger.info(f"[LearnAgent] Polling speech_history since {time_threshold}...")
+        response = supabase_client.table('speech_history') \
+            .select("raw_transcript,corrected_text") \
+            .gte("created_at", time_threshold) \
+            .execute()
+        rows = response.data or []
+        logger.info(f"[LearnAgent] Retrieved {len(rows)} rows from Supabase.")
+        return rows
+    except Exception as e:
+        logger.error(f"[LearnAgent] Failed to query Supabase: {e}")
+        return []
+
+def _learning_agent_save_rules(new_rules_text):
+    """Parse Gemini output and append new unique rules to phonetic_rules.txt.
+    Preserves the existing structured format (section headers, pattern docs)."""
+    os.makedirs(os.path.dirname(PHONETIC_RULES_PATH), exist_ok=True)
+
+    # Read existing file content in full
+    existing_content = ""
+    existing_rules = set()
+    if os.path.exists(PHONETIC_RULES_PATH):
+        try:
+            with open(PHONETIC_RULES_PATH, 'r', encoding='utf-8') as f:
+                existing_content = f.read()
+                for line in existing_content.splitlines():
+                    stripped = line.strip()
+                    if stripped.startswith("- If sound is "):
+                        existing_rules.add(stripped)
+        except Exception as e:
+            logger.error(f"[LearnAgent] Error reading phonetic rules: {e}")
+
+    # Parse new rules from Gemini output
+    rule_pattern = re.compile(
+        r"If sound is\s*\[?(.*?)\]?\s*->\s*translates to:\s*\[?([^\]\n]+)",
+        re.IGNORECASE
+    )
+    new_rules = []
+    for line in new_rules_text.splitlines():
+        match = rule_pattern.search(line.strip())
+        if match:
+            sound_x = match.group(1).strip()
+            sound_y = match.group(2).strip()
+            if sound_x and sound_y:
+                normalized = f"- If sound is [{sound_x}] -> translates to: [{sound_y}]"
+                if normalized not in existing_rules:
+                    existing_rules.add(normalized)
+                    new_rules.append(normalized)
+                    logger.info(f"[LearnAgent] New rule: {normalized}")
+
+    if new_rules:
+        try:
+            # Append new rules to the end of the file, preserving all existing content
+            with open(PHONETIC_RULES_PATH, 'a', encoding='utf-8') as f:
+                f.write("\n--- Auto-learned (" + datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC") + ") ---\n")
+                f.write("\n".join(new_rules) + "\n")
+            logger.info(f"[LearnAgent] Appended {len(new_rules)} new rules to phonetic_rules.txt")
+        except Exception as e:
+            logger.error(f"[LearnAgent] Error writing rules: {e}")
+    else:
+        logger.info("[LearnAgent] No new unique rules discovered in this cycle.")
+
+def _learning_agent_compile(rows):
+    """Analyze raw vs corrected text discrepancies using Gemini to discover phonetic rules."""
+    pairs = []
+    for row in rows:
+        raw = row.get("raw_transcript", "").strip()
+        corrected = row.get("corrected_text", "").strip()
+        if raw and corrected and raw != corrected:
+            pairs.append((raw, corrected))
+
+    if not pairs:
+        logger.info("[LearnAgent] No discrepancies found in recent history.")
+        return
+
+    logger.info(f"[LearnAgent] Analyzing {len(pairs)} discrepancy pairs...")
+    pairs_str = "\n".join([f'Raw: "{r}" -> Corrected: "{c}"' for r, c in pairs])
+
+    system_instruction = (
+        "You are an expert linguistic analysis compiler for cleft palate speech-to-text calibration.\n"
+        "Compare the raw speech inputs (phonetically distorted) with their corrected versions.\n"
+        "Isolate each specific mispronounced word/sound and map it to the correct English word.\n"
+        "Output ONLY rules in this exact format, one per line:\n"
+        "- If sound is [X] -> translates to: [Y]\n"
+        "No intro, no explanation, no markdown."
+    )
+
+    try:
+        api_key = os.environ.get("GEMINI_API_KEY_3")
+        if not api_key:
+            # Fall back to the rotation pool if key 3 is not set
+            api_key = get_next_api_key()
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=system_instruction)
+
+        safety_settings = [
+            {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+            {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+        ]
+
+        prompt = f"Compare discrepancies and compile phonetic rules:\n\n{pairs_str}\n\nRules:\n"
+        response = model.generate_content(
+            prompt,
+            generation_config={'temperature': 0.0},
+            safety_settings=safety_settings
+        )
+
+        rules_text = response.text.strip()
+        if rules_text:
+            logger.info(f"[LearnAgent] Gemini generated rules successfully.")
+            _learning_agent_save_rules(rules_text)
+        else:
+            logger.warning("[LearnAgent] Gemini returned empty response.")
+    except Exception as e:
+        logger.error(f"[LearnAgent] Gemini API error: {e}")
+
+def _learning_agent_loop(poll_interval=300):
+    """Background loop: polls Supabase every 5 minutes, discovers new phonetic rules."""
+    logger.info(f"[LearnAgent] Background learning agent started (polling every {poll_interval}s)")
+    # Wait 60s after startup before first poll to let the app settle
+    time.sleep(60)
+    while True:
+        try:
+            rows = _learning_agent_fetch_history()
+            if rows:
+                _learning_agent_compile(rows)
+            else:
+                logger.info("[LearnAgent] No recent history rows found.")
+        except Exception as e:
+            logger.error(f"[LearnAgent] Unhandled error: {e}")
+        time.sleep(poll_interval)
+
+# Start the learning agent as a daemon thread when the app loads
+_learn_thread = threading.Thread(target=_learning_agent_loop, daemon=True, name="LearnAgent")
+_learn_thread.start()
+logger.info("Background learning agent thread launched.")
 
 if __name__ == '__main__':
     logger.info("Starting Resonate cleft-stt-app server...")
