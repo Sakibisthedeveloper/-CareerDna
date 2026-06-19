@@ -140,25 +140,6 @@ D. Unvoiced Plosive / Dropped Final Consonant: Final trailing hard d, g, x sound
 E. Sibilant / Friction Reduction: Words starting with an "S" blend use an introductory air vowel (Stars → Es-tas, Sky → Es-kai, Start → Es-tat).
 F. Compounding Suffix Rule: Words ending in -thing or -down pick up extra placeholder syllables (Everything → En-thing, Locked down → Lock-rah-own).
 
-PERMANENT TEXT CALIBRATION BENCHMARKS:
-Below are the exact phrases the user has recorded for calibration, serving as ground-truth examples of their speech intent:
-- "Open the computer and check my tasks for today."
-- "Copy this text directly to the system clipboard."
-- "Please send a quick message to my family."
-- "The quick brown fox jumps over the lazy dog."
-- "Please bake a fresh batch of tall pecan pies."
-- "Keep the blue shiny keys inside the grey desktop drawer."
-- "Start the local backend server on my laptop right now."
-- "Many morning meetings make for a very long Monday."
-- "Running an online business requires great focus and time."
-- "The total amount is exactly one hundred and twenty-five."
-- "THE house sat the only one in the entire valley on the crest of a low hill. From this height one could see the river and the field of ripe corn dotted with the flowers that always promised a good harvest. The only thing the earth needed was a downpour or at least a shower Throughout the morning Lencho who knew his fields intimately had done nothing else but see the sky towards the north-east."
-- "With a satisfied expression he regarded the field of ripe corn with its flowers, draped in a curtain of rain. But suddenly a strong wind began to blow and along with the rain very large hailstones began to fall. These truly did resemble new silver coins. The boys, exposing themselves to the rain, ran out to collect the frozen pearls."
-- "The prompt summer breeze carries a soft whisper through the trees. Every day, a quick brown fox jumps over the lazy dog, while the bright silver stars start to shine across the quiet sky."
-- "Bro, see, the app is finally live on Render but it failed again with a 500 error. Mann, I thought we fixed this code. Let me check the logs real quick. Bruh, gotcha, it's just a missing database variable. Now it's working perfectly and translating everything. All good."
-- "Bro, I have successfully resolved the issue! The code compiles clean, no errors this time. Mann, look at that, it is working so fast now. All good, everything is locked down. Tell me what you think of this setup, bruh."
-- "When the sunlight strikes raindrops in the air, they act as a prism and form a rainbow. The rainbow is a division of white light into many beautiful colors. These take the shape of a long round arch, with its path high above, and its two ends apparently beyond the horizon. There is, according to legend, a boiling pot of gold at one end. People look, but no one ever finds it."
-- "The birch canoe slid on the smooth planks. Glue the sheet to the dark blue background. A rod is used to catch pink salmon. The ink stain dried on the finished page. Split the log with a quick, sharp blow. The young kid jumped the rusty gate. These thistles bend in a high wind."
 
 CONVERSATIONAL SPEECH TOKEN MAPPINGS (Calibrated from live audio):
 These are exact phonetic-to-intent token mappings discovered from real voice recordings:
@@ -620,6 +601,7 @@ def _run_transcription_pipeline(task_id, audio_bytes, mime_type, history_filenam
             "You are provided with a Standard Operating Procedure (SOP) for phonetic mapping. Use it as a strong guide, but you have the power of contextual logic.\n"
             "CRITICAL RULE 1: If a phonetic sound could map to multiple different words, you MUST use the surrounding context to pick the most logical and nearest intended word.\n"
             "CRITICAL RULE 2: Do NOT over-correct. If a word or phrase is already clear and makes logical sense in English, leave it exactly as it is. Only apply corrections to distorted, nonsensical, or phonetic approximations.\n"
+            "CRITICAL RULE 3: IF THE ENTIRE INPUT ALREADY LOOKS LIKE STANDARD ENGLISH, RETURN IT EXACTLY AS IS WITHOUT CHANGING A SINGLE WORD.\n"
             "Do not blindly apply rules if they make the sentence nonsensical. Ensure the final sentence is grammatically correct and natural.\n"
             "Return ONLY the completely corrected text. Do not include any explanations, preamble, or formatting."
         )
@@ -635,7 +617,7 @@ def _run_transcription_pipeline(task_id, audio_bytes, mime_type, history_filenam
 
         sop_content = ""
         if learned_rules:
-            sop_content = f"\n=== STRICT STANDARD OPERATING PROCEDURE (SOP) FOR PHONETIC MAPPING ===\nYou MUST keep this SOP in front of you and apply it word-by-word to the input text:\n{learned_rules}\n======================================================================\n"
+            sop_content = f"\n=== STRICT STANDARD OPERATING PROCEDURE (SOP) FOR PHONETIC MAPPING ===\nUse this SOP to map distorted phonetic tokens to their intended words:\n{learned_rules}\n======================================================================\n"
 
         prompt_content = f"""
 {VOICE_LINGUISTIC_PROFILE}
@@ -806,6 +788,7 @@ def transcribe():
                 "Use the provided voice linguistic profile, calibration text sentences, and recent correction history to map the phonetic distortions.\n"
                 "CRITICAL RULE 1: If a phonetic sound could map to multiple different words, you MUST use the surrounding context to pick the most logical and nearest intended word.\n"
                 "CRITICAL RULE 2: Do NOT over-correct. If a word or phrase is already clear and makes logical sense in English, leave it exactly as it is. Only apply corrections to distorted, nonsensical, or phonetic approximations.\n"
+                "CRITICAL RULE 3: IF THE ENTIRE INPUT ALREADY LOOKS LIKE STANDARD ENGLISH, RETURN IT EXACTLY AS IS WITHOUT CHANGING A SINGLE WORD.\n"
                 "Do not blindly apply rules if they make the sentence nonsensical. Ensure the final sentence is grammatically correct and natural.\n"
                 "Return ONLY the completely corrected text. Do not include any explanations, preamble, or formatting."
             )
