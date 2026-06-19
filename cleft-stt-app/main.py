@@ -618,7 +618,8 @@ def _run_transcription_pipeline(task_id, audio_bytes, mime_type, history_filenam
             "You are an expert assistive cleft palate speech correction assistant.\n"
             "Your task is to take a raw, phonetic transcription and output the corrected, intended English text.\n"
             "You are provided with a Standard Operating Procedure (SOP) for phonetic mapping. Use it as a strong guide, but you have the power of contextual logic.\n"
-            "CRITICAL RULE: If a phonetic sound could map to multiple different words, you MUST use the surrounding context to pick the most logical and nearest intended word.\n"
+            "CRITICAL RULE 1: If a phonetic sound could map to multiple different words, you MUST use the surrounding context to pick the most logical and nearest intended word.\n"
+            "CRITICAL RULE 2: Do NOT over-correct. If a word or phrase is already clear and makes logical sense in English, leave it exactly as it is. Only apply corrections to distorted, nonsensical, or phonetic approximations.\n"
             "Do not blindly apply rules if they make the sentence nonsensical. Ensure the final sentence is grammatically correct and natural.\n"
             "Return ONLY the completely corrected text. Do not include any explanations, preamble, or formatting."
         )
@@ -642,7 +643,7 @@ def _run_transcription_pipeline(task_id, audio_bytes, mime_type, history_filenam
 RECENT CORRECTION HISTORY (Examples of successful corrections):
 {recent_history_str}
 
-INPUT RAW PHONETIC TEXT TO CORRECT (Translate this word-by-word using the SOP):
+INPUT RAW PHONETIC TEXT TO CORRECT (Fix only the distorted words, leave clear words alone):
 "{raw_phonetic_text}"
 
 CORRECTED TEXT:
@@ -803,7 +804,8 @@ def transcribe():
                 "You are an expert assistive cleft palate speech correction assistant.\n"
                 "Your task is to take a raw, phonetic transcription (which is distorted due to cleft palate speech patterns) and output the corrected, intended English text.\n"
                 "Use the provided voice linguistic profile, calibration text sentences, and recent correction history to map the phonetic distortions.\n"
-                "CRITICAL RULE: If a phonetic sound could map to multiple different words, you MUST use the surrounding context to pick the most logical and nearest intended word.\n"
+                "CRITICAL RULE 1: If a phonetic sound could map to multiple different words, you MUST use the surrounding context to pick the most logical and nearest intended word.\n"
+                "CRITICAL RULE 2: Do NOT over-correct. If a word or phrase is already clear and makes logical sense in English, leave it exactly as it is. Only apply corrections to distorted, nonsensical, or phonetic approximations.\n"
                 "Do not blindly apply rules if they make the sentence nonsensical. Ensure the final sentence is grammatically correct and natural.\n"
                 "Return ONLY the completely corrected text. Do not include any explanations, preamble, or formatting."
             )
@@ -828,7 +830,7 @@ def transcribe():
 RECENT CORRECTION HISTORY (Examples of successful corrections):
 {recent_history_str}
 
-INPUT RAW PHONETIC TEXT TO CORRECT:
+INPUT RAW PHONETIC TEXT TO CORRECT (Fix only the distorted words, leave clear words alone):
 "{raw_phonetic_text}"
 
 CORRECTED TEXT:
