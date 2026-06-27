@@ -139,47 +139,6 @@ C. Initial S-Cluster Prefix: Words starting with S + hard consonant trigger a so
 D. Unvoiced Plosive / Dropped Final Consonant: Final trailing hard d, g, x sounds transition to unvoiced t or drop completely (Good → Oot, Dog → Fob, Fox → Soff, Wind → Wine, Jumped → Jam).
 E. Sibilant / Friction Reduction: Words starting with an "S" blend use an introductory air vowel (Stars → Es-tas, Sky → Es-kai, Start → Es-tat).
 F. Compounding Suffix Rule: Words ending in -thing or -down pick up extra placeholder syllables (Everything → En-thing, Locked down → Lock-rah-own).
-
-
-CONVERSATIONAL SPEECH TOKEN MAPPINGS (Calibrated from live audio):
-These are exact phonetic-to-intent token mappings discovered from real voice recordings:
-  "Me-aw, see" → "Bro, see"
-  "Me-ah, gotcha" → "Bruh, gotcha"
-  "Me-aw, I have" → "Bro, I have"
-  "ma it fail again" → "but it failed again"
-  "fix-tah-tah-oo code" → "fixed this code"
-  "lots on real quick" → "logs real quick"
-  "en ant-skating en-thing" → "and translating everything"
-  "All oot" → "All good"
-  "successfully resolve-tah issue" → "successfully resolved the issue"
-  "no eren this time" → "no errors this time"
-  "Men, look look at that" → "Mann, look at that"
-  "working so fast-nah" → "working so fast now"
-  "everything is lock-rah-own" → "everything is locked down"
-  "setup, me-ah" → "setup, bruh"
-
-READING PASSAGE TOKEN MAPPINGS (Calibrated from live audio):
-  "is-arts for raindrops" → "strikes raindrops"
-  "act as a pis-m" → "act as a prism"
-  "ka rainbow is a-givision" → "The rainbow is a division"
-  "into many mi-fo colors" → "into many beautiful colors"
-  "high e-bove" → "high above"
-  "ap-per-en-ly beyond" → "apparently beyond"
-  "boiling op-pot of gold" → "boiling pot of gold"
-  "no one eh-ver finds it" → "no one ever finds it"
-  "The mish canoe" → "The birch canoe"
-  "sulit over the smooth planks" → "slid on the smooth planks"
-  "dark blue me-background" → "dark blue background"
-  "A rot is use to catch" → "A rod is used to catch"
-  "pink sar-men" → "pink salmon"
-  "The ink is-tain dried" → "The ink stain dried"
-  "finish peace" → "finished page"
-  "Is-plit the log" → "Split the log"
-  "quick sharp lo" → "quick, sharp blow"
-  "The young-it jam" → "The young kid jumped"
-  "the rusty-get" → "the rusty gate"
-  "this his-tels men" → "These thistles bend"
-  "in the high wine" → "in a high wind"
 """
 
 def get_mime_type(filename):
@@ -452,18 +411,21 @@ def generate_content_with_backoff(model, contents, generation_config=None):
         try:
             logger.info(f"Calling Gemini API (model=gemini-2.5-flash, attempt={attempt + 1}/{max_retries + 1})...")
             if generation_config:
-                return model.generate_content(contents, generation_config=generation_config, safety_settings=safety_settings)
-            return model.generate_content(contents, safety_settings=safety_settings)
+                return model.generate_content(contents, generation_config=generation_config, safety_settings=safety_settings, request_options={'timeout': 30})
+            return model.generate_content(contents, safety_settings=safety_settings, request_options={'timeout': 30})
         except Exception as e:
             print(f"CRITICAL ERROR [Gemini API Request]: {str(e)}")
 
             # Check if this is one of the target 5xx status codes
             code = getattr(e, 'code', None) or getattr(e, 'status_code', None)
             err_str = str(e)
+            err_str_lower = err_str.lower()
 
             is_target_error = False
             target_codes = [429, 500, 501, 502, 503, 504, 506]
             if code in target_codes or str(code) in [str(c) for c in target_codes]:
+                is_target_error = True
+            elif "timeout" in err_str_lower or "deadline" in err_str_lower:
                 is_target_error = True
             else:
                 for tc in target_codes:
@@ -474,7 +436,7 @@ def generate_content_with_backoff(model, contents, generation_config=None):
             if is_target_error:
                 if attempt < max_retries:
                     logger.warning(
-                        f"Gemini API returned 5xx status error: {e}. "
+                        f"Gemini API returned retryable error: {e}. "
                         f"Rotating key and re-instantiating model. Retry {attempt + 1}/{max_retries}..."
                     )
                     # Rotate to next key and re-instantiate model with gemini-2.5-flash
@@ -489,7 +451,7 @@ def generate_content_with_backoff(model, contents, generation_config=None):
                     logger.error(f"Max retries reached ({max_retries}) for Gemini API call. Failing.")
                     raise e
             else:
-                # Non-5xx error: raise immediately without retry
+                # Non-retryable error: raise immediately without retry
                 raise e
 
 # --- 3. TWO-STAGE CORRECTION PIPELINE ---
@@ -888,6 +850,51 @@ def save_correction():
         traceback.print_exc()
         return jsonify({"error": "Failed to save correction. Please try again."}), 500
 
+@app.route('/delete-history', methods=['POST'])
+def delete_history():
+    """Endpoint for user to delete a bad transcript entry from history."""
+    data = request.get_json() or {}
+    audio_id = data.get('audio_id')
+
+    if not audio_id:
+        return jsonify({"error": "Missing audio_id."}), 400
+
+    try:
+        raw_text_to_delete = ""
+        # Delete from local JSON
+        if os.path.exists(HISTORY_MAP_PATH):
+            with client_lock:
+                try:
+                    with open(HISTORY_MAP_PATH, 'r', encoding='utf-8') as f:
+                        local_map = json.load(f)
+                    
+                    if audio_id in local_map:
+                        entry = local_map[audio_id]
+                        if isinstance(entry, dict):
+                            raw_text_to_delete = entry.get("raw_text", "")
+                        del local_map[audio_id]
+                        
+                        json_str = json.dumps(local_map, indent=2, ensure_ascii=False)
+                        with open(HISTORY_MAP_PATH, 'w', encoding='utf-8') as f:
+                            f.write(json_str)
+                except Exception as e:
+                    logger.error(f"Failed to update local history map during delete: {e}")
+
+        # Delete from Supabase
+        supabase_client = get_supabase_client()
+        if supabase_client and raw_text_to_delete:
+            try:
+                # We delete by matching raw_transcript if we don't have db_id
+                supabase_client.table('speech_history').delete().eq('raw_transcript', raw_text_to_delete).execute()
+                logger.info(f"Deleted history from Supabase with raw_transcript: {raw_text_to_delete}")
+            except Exception as e:
+                logger.error(f"Failed to delete history record in Supabase: {e}")
+        
+        return jsonify({"success": True, "message": "History entry deleted."})
+    except Exception as e:
+        logger.error(f"Error deleting history for {audio_id}: {e}", exc_info=True)
+        return jsonify({"error": "Failed to delete history."}), 500
+
 # --- EMBEDDED BACKGROUND LEARNING AGENT ---
 # This runs as a daemon thread inside the main gunicorn process.
 # Previously learn_agent.py was a separate script but the Procfile never started it,
@@ -1005,7 +1012,8 @@ def _learning_agent_compile(rows):
         response = model.generate_content(
             prompt,
             generation_config={'temperature': 0.0},
-            safety_settings=safety_settings
+            safety_settings=safety_settings,
+            request_options={'timeout': 30}
         )
 
         rules_text = response.text.strip()
