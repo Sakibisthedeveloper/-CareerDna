@@ -7,22 +7,26 @@
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #121824;
-            --card-bg: rgba(25, 30, 41, 0.6);
-            --border-color: rgba(255, 255, 255, 0.07);
-            --text-primary: #f8fafc;
-            --text-secondary: #94a3b8;
-            --text-muted: #64748b;
-            --primary-grad: linear-gradient(135deg, #6366f1, #8b5cf6);
-            --record-grad: linear-gradient(135deg, #ef4444, #f43f5e);
-            --success-color: #10B981;
-            --success-bg: rgba(16, 185, 129, 0.15);
-            --success-border: rgba(16, 185, 129, 0.3);
-            --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
-            --pulse-color: rgba(239, 68, 68, 0.4);
+            --bg-color: #121416;
+            --card-bg: #1A1D23;
+            --border-color: #2D3139;
+            --text-primary: #E2E2E5;
+            --text-secondary: #9CA3AF;
+            --text-muted: #6B7280;
+            --accent-blue: #0066CC;
+            --accent-blue-hover: #0077ED;
+            --accent-blue-bg: rgba(0, 102, 204, 0.1);
+            --accent-blue-border: rgba(0, 102, 204, 0.25);
+            --record-color: #DC3545;
+            --record-bg: rgba(220, 53, 69, 0.12);
+            --success-color: #198754;
+            --success-bg: rgba(25, 135, 84, 0.12);
+            --success-border: rgba(25, 135, 84, 0.3);
+            --warning-color: #F59E0B;
+            --surface-elevated: #242831;
         }
 
         * {
@@ -38,48 +42,48 @@
             min-height: 100vh;
             display: flex;
             flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 24px;
             overflow-x: hidden;
-            background-image: 
-                radial-gradient(circle at 10% 20%, rgba(99, 102, 241, 0.08) 0%, transparent 45%),
-                radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.08) 0%, transparent 45%);
         }
 
         .container {
             width: 100%;
-            max-width: 680px;
-            background: var(--card-bg);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid var(--border-color);
-            border-radius: 24px;
-            padding: 40px 32px;
-            box-shadow: var(--shadow-lg);
-            text-align: center;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 24px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
         }
 
         header {
-            margin-bottom: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 0;
+            margin-bottom: 24px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
 
         h1 {
-            font-family: 'Outfit', sans-serif;
-            font-size: 2.4rem;
-            font-weight: 800;
-            letter-spacing: -0.03em;
-            background: linear-gradient(to right, #a5b4fc, #e9d5ff);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 8px;
+            font-family: 'Inter', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            letter-spacing: -0.02em;
         }
 
         p.subtitle {
-            color: var(--text-secondary);
-            font-size: 0.95rem;
-            line-height: 1.5;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            font-weight: 500;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
         }
 
         /* Calibration Status Badge */
@@ -87,129 +91,96 @@
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            background: rgba(99, 102, 241, 0.08);
-            border: 1px solid rgba(99, 102, 241, 0.15);
-            padding: 6px 16px;
-            border-radius: 50px;
-            font-size: 0.85rem;
-            color: #a5b4fc;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 0.78rem;
+            color: var(--text-secondary);
             font-weight: 500;
-            margin-bottom: 30px;
+            font-family: 'Inter', sans-serif;
         }
 
         .calibration-status .dot {
             width: 8px;
             height: 8px;
-            background-color: #10B981;
+            background-color: var(--success-color);
             border-radius: 50%;
-            box-shadow: 0 0 8px #10B981;
         }
 
         .calibration-status .dot.inactive {
-            background-color: #ef4444;
-            box-shadow: 0 0 8px #ef4444;
+            background-color: var(--record-color);
         }
 
         /* Record Button Area */
         .recorder-section {
-            position: relative;
             display: flex;
             flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 30px;
+            align-items: stretch;
+            margin-bottom: 24px;
         }
 
         .record-btn-container {
-            position: relative;
-            width: 140px;
-            height: 140px;
-            margin-bottom: 20px;
             display: flex;
             align-items: center;
             justify-content: center;
+            margin-bottom: 12px;
         }
 
         .pulse-ring {
-            position: absolute;
-            width: 120px;
-            height: 120px;
-            border-radius: 50%;
-            background: transparent;
-            border: 2px solid #EF4444;
-            opacity: 0;
-            pointer-events: none;
-            z-index: 1;
-        }
-
-        .recording .ring-1 {
-            animation: pulse-ring-anim 1.8s cubic-bezier(0.215, 0.610, 0.355, 1) infinite;
-        }
-
-        .recording .ring-2 {
-            animation: pulse-ring-anim 1.8s cubic-bezier(0.215, 0.610, 0.355, 1) infinite;
-            animation-delay: 0.6s;
-        }
-
-        @keyframes pulse-ring-anim {
-            0% {
-                transform: scale(0.95);
-                opacity: 0.8;
-            }
-            100% {
-                transform: scale(1.45);
-                opacity: 0;
-            }
+            display: none;
         }
 
         .record-btn {
-            width: 120px;
-            height: 120px;
-            border-radius: 50%;
-            border: none;
-            background: var(--primary-grad);
-            cursor: pointer;
-            z-index: 2;
-            display: flex;
+            display: inline-flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 8px 32px rgba(99, 102, 241, 0.3);
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            gap: 10px;
+            padding: 14px 32px;
+            border-radius: 8px;
+            border: none;
+            background: var(--accent-blue);
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #FFFFFF;
+            transition: background 0.2s ease;
             outline: none;
+            min-height: 48px;
         }
 
         .record-btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 12px 36px rgba(99, 102, 241, 0.5);
+            background: var(--accent-blue-hover);
         }
 
         .record-btn:active {
-            transform: scale(0.95);
+            opacity: 0.9;
         }
 
         .recording .record-btn {
-            background: var(--record-grad);
-            box-shadow: 0 8px 32px rgba(239, 68, 68, 0.4);
+            background: var(--record-color);
         }
 
         .record-btn svg {
-            width: 48px;
-            height: 48px;
-            fill: var(--text-primary);
-            transition: all 0.3s ease;
+            width: 20px;
+            height: 20px;
+            fill: #FFFFFF;
         }
 
         .recording .record-btn svg {
-            transform: scale(0.85);
+            /* no transform needed */
         }
 
         .status-text {
-            font-size: 1rem;
-            color: var(--text-secondary);
+            font-size: 0.8rem;
+            color: var(--text-muted);
             font-weight: 500;
-            margin-top: 10px;
-            min-height: 24px;
-            transition: color 0.2s ease;
+            font-family: 'JetBrains Mono', 'Roboto Mono', monospace;
+            text-align: center;
+            margin-top: 8px;
+            min-height: 20px;
+            letter-spacing: 0.02em;
         }
 
         /* Audio Waveform Canvas */
@@ -235,16 +206,16 @@
             display: none;
             align-items: center;
             justify-content: center;
-            gap: 6px;
-            height: 50px;
-            margin: 25px auto;
+            gap: 4px;
+            height: 40px;
+            margin: 20px auto;
         }
 
         .wave-bar {
-            width: 5px;
-            height: 35px;
-            background: linear-gradient(180deg, #6366f1, #a855f7);
-            border-radius: 3px;
+            width: 4px;
+            height: 30px;
+            background: var(--accent-blue);
+            border-radius: 2px;
             animation: wave-anim 1.2s ease-in-out infinite;
         }
 
@@ -266,86 +237,87 @@
         /* Result Section & Text Grid */
         .result-section {
             display: none;
-            margin-top: 30px;
-            animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            margin-top: 24px;
+            animation: fadeIn 0.3s ease forwards;
         }
 
         .text-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 20px;
+            gap: 16px;
             text-align: left;
-            margin-bottom: 20px;
+            margin-bottom: 16px;
         }
 
         .panel-card {
-            background: rgba(18, 24, 36, 0.4);
+            background: var(--card-bg);
             border: 1px solid var(--border-color);
-            border-radius: 16px;
+            border-radius: 6px;
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
         }
 
         .panel-card.raw-panel {
-            background: rgba(18, 24, 36, 0.25);
+            background: var(--card-bg);
         }
 
         .panel-card.final-panel {
-            border-color: rgba(99, 102, 241, 0.15);
-            background: rgba(99, 102, 241, 0.02);
+            border-color: var(--accent-blue-border);
+            background: var(--card-bg);
         }
 
         .panel-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 12px 16px;
+            padding: 10px 14px;
             background: rgba(255, 255, 255, 0.02);
             border-bottom: 1px solid var(--border-color);
         }
 
         .panel-tag {
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: var(--text-secondary);
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', 'Roboto Mono', monospace;
         }
 
         .panel-tag.accent {
-            color: #a5b4fc;
+            color: var(--accent-blue);
         }
 
         .panel-actions {
             display: flex;
-            gap: 8px;
+            gap: 6px;
         }
 
         .action-btn {
-            background: rgba(255, 255, 255, 0.04);
+            background: transparent;
             border: 1px solid var(--border-color);
-            padding: 6px 12px;
-            border-radius: 8px;
-            color: var(--text-primary);
-            font-size: 0.8rem;
+            padding: 5px 10px;
+            border-radius: 4px;
+            color: var(--text-secondary);
+            font-size: 0.75rem;
             font-weight: 500;
             cursor: pointer;
             display: flex;
             align-items: center;
-            gap: 6px;
-            transition: all 0.2s ease;
+            gap: 5px;
+            transition: all 0.15s ease;
         }
 
         .action-btn:hover {
-            background: rgba(255, 255, 255, 0.08);
-            border-color: rgba(255, 255, 255, 0.15);
+            background: var(--accent-blue-bg);
+            border-color: var(--accent-blue-border);
+            color: var(--text-primary);
         }
 
         .action-btn svg {
-            width: 14px;
-            height: 14px;
+            width: 13px;
+            height: 13px;
             fill: currentColor;
         }
 
@@ -357,47 +329,48 @@
         }
 
         .panel-content-box {
-            padding: 20px;
-            font-size: 1.05rem;
+            padding: 16px;
+            font-size: 0.95rem;
             line-height: 1.6;
-            min-height: 100px;
+            min-height: 80px;
             word-break: break-word;
             color: var(--text-primary);
         }
 
         .raw-panel .panel-content-box {
             color: var(--text-secondary);
-            font-style: italic;
+            font-family: 'JetBrains Mono', 'Roboto Mono', monospace;
+            font-size: 0.85rem;
         }
 
         /* Correction Box style */
         .correction-container {
-            background: rgba(18, 24, 36, 0.4);
+            background: var(--card-bg);
             border: 1px solid var(--border-color);
-            border-radius: 16px;
-            padding: 20px;
-            margin-top: 15px;
+            border-radius: 6px;
+            padding: 16px;
+            margin-top: 12px;
             text-align: left;
         }
 
         /* Error/Info Alert Box */
         .alert-box {
             display: none;
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid rgba(239, 68, 68, 0.2);
+            background: var(--record-bg);
+            border: 1px solid rgba(220, 53, 69, 0.25);
             color: #fca5a5;
-            padding: 14px 20px;
-            border-radius: 12px;
-            font-size: 0.9rem;
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-size: 0.85rem;
             text-align: left;
-            margin-top: 25px;
+            margin-top: 20px;
             line-height: 1.5;
         }
 
         .alert-box.info {
-            background: rgba(99, 102, 241, 0.08);
-            border-color: rgba(99, 102, 241, 0.2);
-            color: #a5b4fc;
+            background: var(--accent-blue-bg);
+            border-color: var(--accent-blue-border);
+            color: #93C5FD;
         }
 
         @keyframes fadeIn {
@@ -407,29 +380,28 @@
 
         /* Calibration Accordion Panel */
         .calibration-panel {
-            background: rgba(25, 30, 41, 0.3);
+            background: var(--card-bg);
             border: 1px solid var(--border-color);
-            border-radius: 18px;
-            margin-top: 30px;
+            border-radius: 6px;
+            margin-top: 24px;
             overflow: hidden;
             text-align: left;
-            transition: all 0.3s ease;
         }
 
         .panel-toggle {
             width: 100%;
             background: transparent;
             border: none;
-            padding: 18px 24px;
+            padding: 14px 18px;
             color: var(--text-primary);
-            font-size: 1.05rem;
+            font-size: 0.9rem;
             font-weight: 600;
             display: flex;
             justify-content: space-between;
             align-items: center;
             cursor: pointer;
             outline: none;
-            font-family: 'Outfit', sans-serif;
+            font-family: 'Inter', sans-serif;
         }
 
         .panel-toggle:hover {
@@ -449,7 +421,7 @@
 
         .panel-content {
             display: none;
-            padding: 24px;
+            padding: 18px;
             border-top: 1px solid var(--border-color);
             background: rgba(18, 24, 36, 0.3);
         }
@@ -472,20 +444,19 @@
         }
 
         .phrase-item {
-            background: rgba(18, 24, 36, 0.4);
-            border: 1px solid rgba(255, 255, 255, 0.02);
-            border-radius: 12px;
-            padding: 16px 20px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 14px 16px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            gap: 16px;
-            transition: all 0.2s ease;
+            gap: 14px;
+            transition: border-color 0.15s ease;
         }
 
         .phrase-item:hover {
-            border-color: rgba(99, 102, 241, 0.25);
-            background: rgba(99, 102, 241, 0.03);
+            border-color: var(--accent-blue-border);
         }
 
         .phrase-info {
@@ -517,46 +488,46 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 22px;
-            height: 22px;
+            width: 20px;
+            height: 20px;
             border-radius: 50%;
-            background: rgba(239, 68, 68, 0.1);
-            color: #ef4444;
-            font-size: 0.8rem;
+            background: var(--record-bg);
+            color: var(--record-color);
+            font-size: 0.75rem;
             font-weight: bold;
         }
 
         .status-badge.active {
-            background: rgba(16, 185, 129, 0.1);
-            color: #10B981;
+            background: var(--success-bg);
+            color: var(--success-color);
         }
 
         .calib-rec-btn {
-            background: rgba(255, 255, 255, 0.05);
+            background: transparent;
             border: 1px solid var(--border-color);
             color: var(--text-primary);
-            padding: 8px 16px;
-            border-radius: 8px;
-            font-size: 0.8rem;
+            padding: 7px 14px;
+            border-radius: 4px;
+            font-size: 0.78rem;
             font-weight: 500;
             cursor: pointer;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            gap: 6px;
+            gap: 5px;
             white-space: nowrap;
-            transition: all 0.2s ease;
+            transition: all 0.15s ease;
         }
 
         .calib-rec-btn:hover {
-            background: rgba(99, 102, 241, 0.1);
-            border-color: rgba(99, 102, 241, 0.3);
+            background: var(--accent-blue-bg);
+            border-color: var(--accent-blue-border);
         }
 
         .calib-rec-btn.recording-calib {
-            background: var(--record-grad);
+            background: var(--record-color);
             border-color: transparent;
-            animation: pulse-border 1.5s infinite;
+            color: white;
         }
 
         @keyframes pulse-border {
@@ -588,7 +559,7 @@
             }
             .container {
                 padding: 24px 16px;
-                border-radius: 20px;
+                border-radius: 4px;
             }
             h1 {
                 font-size: 1.8rem;
@@ -636,15 +607,16 @@
 
     <div class="container">
         <header>
-            <h1>Resonate</h1>
-            <p class="subtitle">Speech-to-Text</p>
+            <div class="header-left">
+                <h1>Resonate</h1>
+                <p class="subtitle">Speech-to-Text Calibration</p>
+            </div>
+            <!-- Calibration Status -->
+            <div class="calibration-status" id="calibration-status">
+                <span class="dot" id="calibration-dot"></span>
+                <span id="calibration-text">Calibration status loading...</span>
+            </div>
         </header>
-
-        <!-- Calibration Status -->
-        <div class="calibration-status" id="calibration-status">
-            <span class="dot" id="calibration-dot"></span>
-            <span id="calibration-text">Calibration status loading...</span>
-        </div>
 
         <!-- Main Recorder Area -->
         <div class="recorder-section" id="recorder-section">
@@ -663,7 +635,7 @@
                     </svg>
                 </button>
             </div>
-            <div class="status-text" id="status-text">Tap the button to start recording</div>
+            <div class="status-text" id="status-text">STATUS: IDLE â€” Tap to start recording</div>
 
             <!-- Waveform Visualizer -->
             <div class="visualizer-container">
@@ -686,15 +658,15 @@
                 <!-- Raw Phonetic Panel -->
                 <div class="panel-card raw-panel">
                     <div class="panel-header">
-                        <span class="panel-tag">Raw Phonetics</span>
+                        <span class="panel-tag">OUTPUT: PHONETIC_RAW</span>
                     </div>
-                    <div class="panel-content-box" id="raw-result-box">Waiting for speech...</div>
+                    <div class="panel-content-box" id="raw-result-box">Awaiting speech input...</div>
                 </div>
 
                 <!-- Finalized Gemini Panel -->
                 <div class="panel-card final-panel">
                     <div class="panel-header">
-                        <span class="panel-tag accent">Finalized Text</span>
+                        <span class="panel-tag accent">OUTPUT: TRANSCRIPTION</span>
                         <div class="panel-actions">
                             <button class="action-btn" id="edit-btn">
                                 <svg viewBox="0 0 24 24">
@@ -731,7 +703,7 @@
                     </button>
                 </div>
 
-                <button class="calib-rec-btn" id="save-correction-btn" style="margin-top:12px; width:100%; justify-content:center; background:linear-gradient(135deg, #6366f1 0%, #a855f7 100%); padding:12px; border-radius:10px; font-weight:600; border:none; color:white; font-size:0.9rem;">
+                <button class="calib-rec-btn" id="save-correction-btn" style="margin-top:12px; width:100%; justify-content:center; background:var(--accent-blue); padding:12px; border-radius:6px; font-weight:600; border:none; color:white; font-size:0.85rem;">
                     Save Correction & Train Model
                 </button>
             </div>
@@ -841,20 +813,20 @@
                 // Update top badge
                 if (data.status === 'calibrated') {
                     calibrationDot.className = 'dot';
-                    calibrationDot.style.background = '#34d399';
-                    calibrationDot.style.boxShadow = '0 0 8px #34d399';
+                    calibrationDot.style.background = '#198754';
+                    calibrationDot.style.boxShadow = 'none';
                     calibrationText.textContent = `Calibrated`;
                     hideAlert();
                 } else if (data.status === 'partially_calibrated') {
                     calibrationDot.className = 'dot';
-                    calibrationDot.style.background = '#f59e0b';
-                    calibrationDot.style.boxShadow = '0 0 8px #f59e0b';
+                    calibrationDot.style.background = '#F59E0B';
+                    calibrationDot.style.boxShadow = 'none';
                     calibrationText.textContent = `Partially Calibrated (${data.count}/${data.total})`;
                     showAlert("Your model is partially trained. Record the remaining sentences in the panel below for full calibration.", "info");
                 } else {
                     calibrationDot.className = 'dot inactive';
-                    calibrationDot.style.background = '#f87171';
-                    calibrationDot.style.boxShadow = '0 0 8px #f87171';
+                    calibrationDot.style.background = '#DC3545';
+                    calibrationDot.style.boxShadow = 'none';
                     calibrationText.textContent = 'Uncalibrated';
                     showAlert("Your model is uncalibrated. Expand the 'Model Training & Calibration' panel below to record your voice templates.", "info");
                 }
@@ -869,7 +841,7 @@
                     phraseItem.className = 'phrase-item';
                     
                     const badgeClass = fileInfo.exists ? 'status-badge active' : 'status-badge';
-                    const badgeText = fileInfo.exists ? '✓' : '✗';
+                    const badgeText = fileInfo.exists ? 'âœ“' : 'âœ—';
                     const recBtnText = fileInfo.exists ? 'Re-record' : 'Record';
                     
                     phraseItem.innerHTML = `
@@ -1065,8 +1037,8 @@
 
                     // Gradient for equalizer lines
                     const gradient = canvasCtx.createLinearGradient(0, visualizer.height, 0, 0);
-                    gradient.addColorStop(0, '#6366f1');
-                    gradient.addColorStop(1, '#ec4899');
+                    gradient.addColorStop(0, '#0066CC');
+                    gradient.addColorStop(1, '#339DFF');
                     
                     canvasCtx.fillStyle = gradient;
                     canvasCtx.fillRect(x, visualizer.height - barHeight, barWidth - 2, barHeight);
@@ -1130,9 +1102,9 @@
             /**
              * Takes ANY audio blob (webm/opus, mp4/aac, ogg, etc.)
              * and converts it to 16kHz mono WAV using Web Audio API.
-             * This runs entirely in the browser — no server conversion needed.
+             * This runs entirely in the browser â€” no server conversion needed.
              */
-            const TARGET_SAMPLE_RATE = 16000; // 16kHz — ideal for STT
+            const TARGET_SAMPLE_RATE = 16000; // 16kHz â€” ideal for STT
 
             const arrayBuffer = await audioBlob.arrayBuffer();
             
@@ -1180,7 +1152,7 @@
             // Encode as WAV
             const wavBlob = encodeWAV(resampled, TARGET_SAMPLE_RATE);
             
-            console.log(`Audio normalized: ${audioBlob.type} ${(audioBlob.size/1024).toFixed(0)}KB → WAV 16kHz mono ${(wavBlob.size/1024).toFixed(0)}KB`);
+            console.log(`Audio normalized: ${audioBlob.type} ${(audioBlob.size/1024).toFixed(0)}KB â†’ WAV 16kHz mono ${(wavBlob.size/1024).toFixed(0)}KB`);
             return wavBlob;
         }
 
@@ -1189,9 +1161,9 @@
             hideAlert();
             audioChunks = [];
 
-            // Secure Context check — mobile browsers BLOCK microphone on non-HTTPS
+            // Secure Context check â€” mobile browsers BLOCK microphone on non-HTTPS
             if (!window.isSecureContext) {
-                showAlert("⚠️ Microphone requires HTTPS. Please access this app via the Render URL (https://...), not http://.");
+                showAlert("âš ï¸ Microphone requires HTTPS. Please access this app via the Render URL (https://...), not http://.");
                 return;
             }
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -1202,7 +1174,7 @@
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 
-                // Select MIME Type — let the browser pick whatever it natively supports.
+                // Select MIME Type â€” let the browser pick whatever it natively supports.
                 // We normalize to WAV later, so the recording format doesn't matter.
                 let options = { mimeType: 'audio/webm' };
                 if (!MediaRecorder.isTypeSupported(options.mimeType)) {
@@ -1229,7 +1201,7 @@
                     stream.getTracks().forEach(track => track.stop());
                     
                     // Normalize to 16kHz mono WAV before sending
-                    statusText.textContent = 'Converting audio format...';
+                    statusText.textContent = 'STATUS: CONVERTING â€” Normalizing audio format...';
                     const normalizedBlob = await normalizeToWav(rawBlob);
                     
                     // Store for frontend playback
@@ -1250,9 +1222,9 @@
                 recordBtnContainer.classList.add('recording');
                 micIcon.style.display = 'none';
                 stopIcon.style.display = 'block';
-                statusText.textContent = 'Recording... Tap to stop';
+                statusText.textContent = 'STATUS: RECORDING â€” Tap to stop';
                 resultSection.style.display = 'none';
-                rawResultBox.textContent = 'Waiting for speech...';
+                rawResultBox.textContent = 'Awaiting speech input...';
 
                 mediaRecorder.start(250); // Slice data every 250ms
                 setupVisualizer(stream);
@@ -1272,7 +1244,7 @@
             recordBtnContainer.classList.remove('recording');
             micIcon.style.display = 'block';
             stopIcon.style.display = 'none';
-            statusText.textContent = 'Processing speech...';
+            statusText.textContent = 'STATUS: PROCESSING â€” Analyzing speech...';
             
             if (audioCtx) {
                 audioCtx.close();
@@ -1306,10 +1278,10 @@
         async function pollTranscriptionStatus(taskId, maxAttempts = 90) {
             _activePollingTaskId = taskId;
             const stageMessages = {
-                'uploading': '⬆️ Uploading audio to server...',
-                'stt': '🎙️ Step 1/2: Transcribing raw speech...',
-                'correction': '🧠 Step 2/2: Correcting with Gemini AI...',
-                'processing': '⏳ Processing your speech...'
+                'uploading': 'STATUS: UPLOADING â€” Sending audio to server...',
+                'stt': 'STATUS: STEP 1/2 â€” Transcribing raw speech...',
+                'correction': 'STATUS: STEP 2/2 â€” AI correction in progress...',
+                'processing': 'STATUS: PROCESSING â€” Analyzing speech...'
             };
 
             for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -1402,7 +1374,7 @@
             loadingSpinner.style.display = 'flex';
             
             const blobSizeKB = Math.round(audioBlob.size / 1024);
-            statusText.textContent = `⬆️ Uploading ${blobSizeKB}KB audio...`;
+                statusText.textContent = `STATUS: UPLOADING â€” ${blobSizeKB}KB audio...`;
             
             const formData = new FormData();
             
@@ -1443,7 +1415,7 @@
                 const data = await response.json();
 
                 if (data.task_id) {
-                    statusText.textContent = '⏳ Processing your speech...';
+                    statusText.textContent = 'STATUS: PROCESSING â€” Awaiting result...';
                     const result = await pollTranscriptionStatus(data.task_id);
                     
                     rawResultBox.textContent = result.raw_transcription || "No raw phonetics captured.";
@@ -1457,7 +1429,7 @@
                 }
 
                 resultSection.style.display = 'block';
-                statusText.textContent = 'Transcription complete!';
+                statusText.textContent = 'STATUS: COMPLETE â€” Transcription ready';
                 hideAlert();
                 
                 correctionContainer.style.display = 'none';
@@ -1475,13 +1447,13 @@
                     error.message.includes('NetworkError')
                 )) {
                     console.log('Mobile network error, retrying...');
-                    statusText.textContent = 'Connection hiccup — retrying...';
+                    statusText.textContent = 'Connection hiccup â€” retrying...';
                     await new Promise(resolve => setTimeout(resolve, 1500));
                     return sendAudioToBackend(audioBlob, retryCount + 1);
                 }
 
                 showAlert(error.message || "Could not connect to the transcription backend server.");
-                statusText.textContent = 'Connection error — tap to try again';
+                statusText.textContent = 'Connection error â€” tap to try again';
             } finally {
                 loadingSpinner.style.display = 'none';
                 recordBtnContainer.style.display = 'flex';
@@ -1553,7 +1525,7 @@
                 editBtn.style.background = '';
                 editBtn.style.color = '';
                 
-                statusText.textContent = 'AI model updated successfully!';
+                statusText.textContent = 'STATUS: MODEL UPDATED â€” Correction saved';
                 showAlert("Training complete! The model has saved your correction and will apply this learning to future transcriptions.", "info");
             } catch (error) {
                 console.error("Save correction error:", error);
