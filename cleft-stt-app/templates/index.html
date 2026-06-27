@@ -1278,9 +1278,9 @@
         async function pollTranscriptionStatus(taskId, maxAttempts = 90) {
             _activePollingTaskId = taskId;
             const stageMessages = {
-                'uploading': 'STATUS: UPLOADING â€” Sending audio to server...',
-                'stt': 'STATUS: STEP 1/2 â€” Transcribing raw speech...',
-                'correction': 'STATUS: STEP 2/2 â€” AI correction in progress...',
+                'uploading': 'STATUS: UPLOADING - Sending audio to server...',
+                'stt': 'STATUS: STEP 1/2 - Transcribing raw speech...',
+                'correction': 'STATUS: STEP 2/2 - AI correction in progress...',
                 'processing': 'STATUS: PROCESSING - Analyzing speech...'
             };
 
