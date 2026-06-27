@@ -16,49 +16,6 @@ PATTERN 6 — Compounding Suffix Rule:
 === EXACT TOKEN-MAPPING DICTIONARY ===
 
 
---- Cleft 2 (Conversational Dev Style — Render Debug) ---
-- If sound is [Me-aw, see] -> translates to: [Bro, see]
-- If sound is [ma it fail again] -> translates to: [but it failed again]
-- If sound is [fix-tah-tah-oo code] -> translates to: [fixed this code]
-- If sound is [lots on real quick] -> translates to: [logs real quick]
-- If sound is [bruh, gotcha] -> translates to: [Bruh, gotcha]
-- If sound is [en ant-skating en-thing] -> translates to: [and translating everything]
-- If sound is [All oot] -> translates to: [All good]
-
---- Cleft 3 (Conversational Dev Style — Celebrate Win) ---
-- If sound is [Me-aw, I have] -> translates to: [Bro, I have]
-- If sound is [successfully resolve-tah issue] -> translates to: [successfully resolved the issue]
-- If sound is [no eren this time] -> translates to: [no errors this time]
-- If sound is [Men, look look at that] -> translates to: [Mann, look at that]
-- If sound is [working so fast-nah] -> translates to: [working so fast now]
-- If sound is [everything is lock-rah-own] -> translates to: [everything is locked down]
-- If sound is [setup, me-ah] -> translates to: [setup, bruh]
-
---- Rainbow Passage (Standard Reading) ---
-- If sound is [is-arts for raindrops] -> translates to: [strikes raindrops]
-- If sound is [act as a pis-m] -> translates to: [act as a prism]
-- If sound is [ka rainbow is a-givision] -> translates to: [The rainbow is a division]
-- If sound is [into many mi-fo colors] -> translates to: [into many beautiful colors]
-- If sound is [high e-bove] -> translates to: [high above]
-- If sound is [ap-per-en-ly beyond] -> translates to: [apparently beyond]
-- If sound is [boiling op-pot of gold] -> translates to: [boiling pot of gold]
-- If sound is [no one eh-ver finds it] -> translates to: [no one ever finds it]
-
---- Birch Canoe (Rare Phonetic Sentences) ---
-- If sound is [The mish canoe] -> translates to: [The birch canoe]
-- If sound is [sulit over the smooth planks] -> translates to: [slid on the smooth planks]
-- If sound is [dark blue me-background] -> translates to: [dark blue background]
-- If sound is [A rot is use to catch] -> translates to: [A rod is used to catch]
-- If sound is [pink sar-men] -> translates to: [pink salmon]
-- If sound is [The ink is-tain dried] -> translates to: [The ink stain dried]
-- If sound is [finish peace] -> translates to: [finished page]
-- If sound is [Is-plit the log] -> translates to: [Split the log]
-- If sound is [quick sharp lo] -> translates to: [quick, sharp blow]
-- If sound is [The young-it jam] -> translates to: [The young kid jumped]
-- If sound is [the rusty-get] -> translates to: [the rusty gate]
-- If sound is [this his-tels men] -> translates to: [These thistles bend]
-- If sound is [in the high wine] -> translates to: [in a high wind]
-
 === PREVIOUSLY LEARNED RULES (Auto-discovered) ===
 - If sound is ['sk-skuh-yooz] -> translates to: [excuse]
 - If sound is [(nn)thiz] -> translates to: [this]
