@@ -635,7 +635,7 @@
                     </svg>
                 </button>
             </div>
-            <div class="status-text" id="status-text">STATUS: IDLE â€” Tap to start recording</div>
+            <div class="status-text" id="status-text">STATUS: IDLE - Tap to start recording</div>
 
             <!-- Waveform Visualizer -->
             <div class="visualizer-container">
@@ -841,7 +841,7 @@
                     phraseItem.className = 'phrase-item';
                     
                     const badgeClass = fileInfo.exists ? 'status-badge active' : 'status-badge';
-                    const badgeText = fileInfo.exists ? 'âœ“' : 'âœ—';
+                    const badgeText = fileInfo.exists ? '&#10003;' : 'X';
                     const recBtnText = fileInfo.exists ? 'Re-record' : 'Record';
                     
                     phraseItem.innerHTML = `
@@ -1201,7 +1201,7 @@
                     stream.getTracks().forEach(track => track.stop());
                     
                     // Normalize to 16kHz mono WAV before sending
-                    statusText.textContent = 'STATUS: CONVERTING â€” Normalizing audio format...';
+                    statusText.textContent = 'STATUS: CONVERTING - Normalizing audio format...';
                     const normalizedBlob = await normalizeToWav(rawBlob);
                     
                     // Store for frontend playback
@@ -1222,7 +1222,7 @@
                 recordBtnContainer.classList.add('recording');
                 micIcon.style.display = 'none';
                 stopIcon.style.display = 'block';
-                statusText.textContent = 'STATUS: RECORDING â€” Tap to stop';
+                statusText.textContent = 'STATUS: RECORDING - Tap to stop';
                 resultSection.style.display = 'none';
                 rawResultBox.textContent = 'Awaiting speech input...';
 
@@ -1244,7 +1244,7 @@
             recordBtnContainer.classList.remove('recording');
             micIcon.style.display = 'block';
             stopIcon.style.display = 'none';
-            statusText.textContent = 'STATUS: PROCESSING â€” Analyzing speech...';
+            statusText.textContent = 'STATUS: PROCESSING - Analyzing speech...';
             
             if (audioCtx) {
                 audioCtx.close();
@@ -1281,7 +1281,7 @@
                 'uploading': 'STATUS: UPLOADING â€” Sending audio to server...',
                 'stt': 'STATUS: STEP 1/2 â€” Transcribing raw speech...',
                 'correction': 'STATUS: STEP 2/2 â€” AI correction in progress...',
-                'processing': 'STATUS: PROCESSING â€” Analyzing speech...'
+                'processing': 'STATUS: PROCESSING - Analyzing speech...'
             };
 
             for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -1374,7 +1374,7 @@
             loadingSpinner.style.display = 'flex';
             
             const blobSizeKB = Math.round(audioBlob.size / 1024);
-                statusText.textContent = `STATUS: UPLOADING â€” ${blobSizeKB}KB audio...`;
+                statusText.textContent = `STATUS: UPLOADING - ${blobSizeKB}KB audio...`;
             
             const formData = new FormData();
             
@@ -1415,7 +1415,7 @@
                 const data = await response.json();
 
                 if (data.task_id) {
-                    statusText.textContent = 'STATUS: PROCESSING â€” Awaiting result...';
+                    statusText.textContent = 'STATUS: PROCESSING - Awaiting result...';
                     const result = await pollTranscriptionStatus(data.task_id);
                     
                     rawResultBox.textContent = result.raw_transcription || "No raw phonetics captured.";
@@ -1429,7 +1429,7 @@
                 }
 
                 resultSection.style.display = 'block';
-                statusText.textContent = 'STATUS: COMPLETE â€” Transcription ready';
+                statusText.textContent = 'STATUS: COMPLETE - Transcription ready';
                 hideAlert();
                 
                 correctionContainer.style.display = 'none';
@@ -1447,13 +1447,13 @@
                     error.message.includes('NetworkError')
                 )) {
                     console.log('Mobile network error, retrying...');
-                    statusText.textContent = 'Connection hiccup â€” retrying...';
+                    statusText.textContent = 'Connection hiccup - retrying...';
                     await new Promise(resolve => setTimeout(resolve, 1500));
                     return sendAudioToBackend(audioBlob, retryCount + 1);
                 }
 
                 showAlert(error.message || "Could not connect to the transcription backend server.");
-                statusText.textContent = 'Connection error â€” tap to try again';
+                statusText.textContent = 'Connection error - tap to try again';
             } finally {
                 loadingSpinner.style.display = 'none';
                 recordBtnContainer.style.display = 'flex';
@@ -1525,7 +1525,7 @@
                 editBtn.style.background = '';
                 editBtn.style.color = '';
                 
-                statusText.textContent = 'STATUS: MODEL UPDATED â€” Correction saved';
+                statusText.textContent = 'STATUS: MODEL UPDATED - Correction saved';
                 showAlert("Training complete! The model has saved your correction and will apply this learning to future transcriptions.", "info");
             } catch (error) {
                 console.error("Save correction error:", error);
