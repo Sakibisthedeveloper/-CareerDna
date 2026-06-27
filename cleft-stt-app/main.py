@@ -800,13 +800,11 @@ def transcribe_status(task_id):
         return jsonify({"error": "Task not found"}), 404
     
     if task["status"] == "done":
-        # Clean up completed task after retrieval
-        with _task_lock:
-            _transcription_tasks.pop(task_id, None)
+        # Rely on _cleanup_stale_tasks to clean this up after 5 minutes
+        # This prevents dropped connections from losing the result permanently.
         return jsonify(task)
     elif task["status"] == "error":
-        with _task_lock:
-            _transcription_tasks.pop(task_id, None)
+        # Leave it for cleanup as well
         return jsonify(task), 500
     else:
         # Still processing

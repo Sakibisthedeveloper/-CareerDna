@@ -1351,6 +1351,17 @@
                     statusText.textContent = stageMsg;
 
                 } catch (pollErr) {
+                    // Abort early for fatal backend errors or missing tasks
+                    if (pollErr.message && (
+                        pollErr.message.includes('failed on server') || 
+                        pollErr.message.includes('status 404') ||
+                        pollErr.message.includes('DefaultCredentialsError') ||
+                        pollErr.message.includes('API_KEY')
+                    )) {
+                        _activePollingTaskId = null;
+                        throw pollErr;
+                    }
+
                     if (attempt >= maxAttempts - 1) {
                         _activePollingTaskId = null;
                         throw pollErr;
