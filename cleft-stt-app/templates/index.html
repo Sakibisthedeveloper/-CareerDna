@@ -1581,7 +1581,17 @@
                     let errText = `Correction save failed with status ${response.status}`;
                     try {
                         const errData = await response.json();
-                        errText = errData.error || errText;
+                        // 422 means AI validation rejected the correction
+                        if (response.status === 422 && errData.rejected) {
+                            errText = errData.message || "Correction rejected by validation.";
+                            // Hide correction container so they have to re-record
+                            correctionContainer.style.display = 'none';
+                            editBtnText.textContent = 'Correct';
+                            editBtn.style.background = '';
+                            editBtn.style.color = '';
+                        } else {
+                            errText = errData.error || errData.message || errText;
+                        }
                     } catch(e) {}
                     throw new Error(errText);
                 }
@@ -1598,8 +1608,14 @@
                 showAlert("Training complete! The model has saved your correction and will apply this learning to future transcriptions.", "info");
             } catch (error) {
                 console.error("Save correction error:", error);
-                showAlert(error.message || "Could not connect to the backend server to save correction.");
-                statusText.textContent = 'Connection error';
+                // For 422 rejections, show a longer alert so they can read the reason
+                if (error.message.includes("words but the raw") || error.message.includes("AI review")) {
+                    showAlert(`Validation Failed: ${error.message}`, "error");
+                    statusText.textContent = 'STATUS: CORRECTION REJECTED';
+                } else {
+                    showAlert(error.message || "Could not connect to the backend server to save correction.", "error");
+                    statusText.textContent = 'STATUS: ERROR SAVING CORRECTION';
+                }
             } finally {
                 loadingSpinner.style.display = 'none';
                 saveCorrectionBtn.disabled = false;

@@ -810,9 +810,117 @@ def transcribe_status(task_id):
         # Still processing
         return jsonify({"status": task["status"], "stage": task.get("stage", "uploading")})
 
+# --- AI-POWERED CORRECTION QUALITY GATE ---
+def _validate_correction(raw_text, corrected_text):
+    """Validate that a user's correction is a plausible interpretation of the raw phonetic text.
+    Returns (is_valid: bool, reason: str).
+    
+    Two-layer validation:
+      Layer 1: Heuristic word count ratio check (fast, no API call)
+      Layer 2: Gemini semantic plausibility review (smart, catches subtle bad data)
+    """
+    if not raw_text or not corrected_text:
+        # If we have no raw text to compare, allow the correction (can't validate)
+        return True, "No raw text available for validation"
+
+    # --- Layer 1: Heuristic word count ratio ---
+    # Clean filler tokens that STT often injects but aren't real words
+    filler_tokens = {'uh', 'um', 'uhm', 'umm', 'uh-m', 'hmm', 'mmm', 'ah', 'oh',
+                     '[nasal]', '[unintelligible]', '[clears', 'throat]', '...', 
+                     '(inhales', 'sharply)', '(mmbl)', '(nn)'}
+    
+    raw_words = [w for w in raw_text.lower().split() 
+                 if w.strip('.,!?"\'-()[]') and w.strip('.,!?"\'-()[]') not in filler_tokens]
+    corrected_words = corrected_text.split()
+    
+    raw_count = max(len(raw_words), 1)  # prevent division by zero
+    corrected_count = len(corrected_words)
+    ratio = corrected_count / raw_count
+    
+    logger.info(f"[Validator] Word count: raw={raw_count}, corrected={corrected_count}, ratio={ratio:.2f}")
+    
+    # If corrected text has 3x+ more words than raw, it's very suspicious
+    if ratio > 3.0 and corrected_count > 8:
+        logger.warning(f"[Validator] REJECTED by heuristic: ratio {ratio:.2f} exceeds 3.0x threshold")
+        return False, (
+            f"Your correction has {corrected_count} words but the raw transcription only captured "
+            f"{raw_count} meaningful words. This suggests the correction may not match what was "
+            f"actually spoken. Please re-record with clearer speech, or correct only what was heard."
+        )
+    
+    # If raw text looks like a Gemini meta-response (not actual speech), reject
+    gemini_meta_phrases = [
+        "i am an ai", "cannot process audio", "please provide the text",
+        "i'm unable to", "as an ai language model", "i cannot listen"
+    ]
+    raw_lower = raw_text.lower()
+    for phrase in gemini_meta_phrases:
+        if phrase in raw_lower:
+            logger.warning(f"[Validator] REJECTED: raw text is a Gemini meta-response, not speech")
+            return False, (
+                "The raw transcription appears to be an AI error message, not actual speech. "
+                "This entry will be discarded. Please try recording again."
+            )
+    
+    # --- Layer 2: Gemini semantic plausibility review ---
+    # Only invoke AI review for borderline cases (ratio 2.0-3.0) or when raw is very short
+    if ratio > 2.0 or (raw_count <= 3 and corrected_count > 6):
+        try:
+            api_key = get_next_api_key()
+            with client_lock:
+                genai.configure(api_key=api_key)
+            
+            review_model = genai.GenerativeModel('gemini-2.5-flash', system_instruction=(
+                "You are a quality control reviewer for a cleft palate speech-to-text system.\n"
+                "Your job is to decide if a user's correction is a PLAUSIBLE interpretation of the raw phonetic transcription.\n"
+                "Cleft palate speech has heavy distortions: dropped consonants, nasal substitutions, extra syllables.\n"
+                "So 'ham-ily' -> 'family' is VALID, 'thuh' -> 'the' is VALID.\n"
+                "But if the raw text has 3 words and the correction has 15 completely unrelated words, that is INVALID.\n"
+                "Respond with ONLY one word: VALID or INVALID"
+            ))
+            
+            review_prompt = (
+                f"Raw phonetic transcription: \"{raw_text}\"\n"
+                f"User's proposed correction: \"{corrected_text}\"\n\n"
+                f"Is this correction a plausible interpretation of the raw phonetic text? "
+                f"Answer VALID or INVALID."
+            )
+            
+            safety_settings = [
+                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+            ]
+            
+            response = review_model.generate_content(
+                review_prompt,
+                generation_config={'temperature': 0.0},
+                safety_settings=safety_settings,
+                request_options={'timeout': 10}
+            )
+            
+            verdict = response.text.strip().upper()
+            logger.info(f"[Validator] Gemini review verdict: {verdict}")
+            
+            if "INVALID" in verdict:
+                logger.warning(f"[Validator] REJECTED by Gemini review")
+                return False, (
+                    "AI review determined this correction doesn't match what was actually spoken. "
+                    "The correction was too different from the raw audio capture. "
+                    "Please re-record or correct only the words that were actually spoken."
+                )
+        except Exception as e:
+            # If AI review fails, fall through and allow the correction
+            logger.warning(f"[Validator] Gemini review failed (allowing correction): {e}")
+    
+    return True, "Correction validated"
+
+
 @app.route('/save-correction', methods=['POST'])
 def save_correction():
-    """Endpoint for user to submit a manual corrected transcript to update model learning history."""
+    """Endpoint for user to submit a manual corrected transcript to update model learning history.
+    Includes AI-powered validation gate to prevent bad training data."""
     data = request.get_json() or {}
     audio_id = data.get('audio_id')
     corrected_text = data.get('corrected_text', '').strip()
@@ -837,7 +945,19 @@ def save_correction():
             if isinstance(entry, dict):
                 raw_text = entry.get("raw_text", "")
         
-        # Save updated correction (updates Supabase and local JSON)
+        # --- AI VALIDATION GATE ---
+        is_valid, reason = _validate_correction(raw_text, corrected_text)
+        if not is_valid:
+            logger.warning(f"Correction REJECTED for {audio_id}: {reason}")
+            # Auto-delete the bad entry from database if it exists
+            _purge_bad_entry(audio_id, raw_text)
+            return jsonify({
+                "success": False,
+                "rejected": True,
+                "message": reason
+            }), 422  # 422 Unprocessable Entity
+        
+        # Save validated correction (updates Supabase and local JSON)
         save_history_entry(audio_id, raw_text, corrected_text)
         logger.info(f"Updated correction for {audio_id}: '{corrected_text}' (raw: '{raw_text}')")
 
@@ -847,6 +967,37 @@ def save_correction():
         logger.error(f"Error saving correction for {audio_id}: {e}", exc_info=True)
         traceback.print_exc()
         return jsonify({"error": "Failed to save correction. Please try again."}), 500
+
+
+def _purge_bad_entry(audio_id, raw_text):
+    """Remove a rejected entry from both local history and Supabase to keep training data clean."""
+    try:
+        # Remove from local JSON
+        if os.path.exists(HISTORY_MAP_PATH):
+            with client_lock:
+                try:
+                    with open(HISTORY_MAP_PATH, 'r', encoding='utf-8') as f:
+                        local_map = json.load(f)
+                    if audio_id in local_map:
+                        del local_map[audio_id]
+                        json_str = json.dumps(local_map, indent=2, ensure_ascii=False)
+                        with open(HISTORY_MAP_PATH, 'w', encoding='utf-8') as f:
+                            f.write(json_str)
+                        logger.info(f"[Purge] Removed bad entry from local history: {audio_id}")
+                except Exception as e:
+                    logger.error(f"[Purge] Failed to clean local history: {e}")
+        
+        # Remove from Supabase
+        if raw_text:
+            supabase_client = get_supabase_client()
+            if supabase_client:
+                try:
+                    supabase_client.table('speech_history').delete().eq('raw_transcript', raw_text).execute()
+                    logger.info(f"[Purge] Removed bad entry from Supabase: {audio_id}")
+                except Exception as e:
+                    logger.error(f"[Purge] Failed to clean Supabase: {e}")
+    except Exception as e:
+        logger.error(f"[Purge] Unhandled error during purge: {e}")
 
 @app.route('/delete-history', methods=['POST'])
 def delete_history():
