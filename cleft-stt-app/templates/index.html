@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Resonate - Cleft Speech-to-Text Calibration</title>
+    <title>Resonate - Cleft Speech-to-Text</title>
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -40,16 +40,21 @@
             background-color: var(--bg-color);
             color: var(--text-primary);
             min-height: 100vh;
+            min-height: 100dvh;
             display: flex;
             flex-direction: column;
             overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+            scroll-behavior: smooth;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-text-size-adjust: 100%;
         }
 
         .container {
             width: 100%;
             max-width: 960px;
             margin: 0 auto;
-            padding: 24px;
+            padding: 20px;
             flex-grow: 1;
             display: flex;
             flex-direction: column;
@@ -59,6 +64,8 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
             padding: 16px 0;
             margin-bottom: 24px;
             border-bottom: 1px solid var(--border-color);
@@ -116,7 +123,7 @@
         .recorder-section {
             display: flex;
             flex-direction: column;
-            align-items: stretch;
+            align-items: center;
             margin-bottom: 24px;
         }
 
@@ -125,6 +132,7 @@
             align-items: center;
             justify-content: center;
             margin-bottom: 12px;
+            width: 100%;
         }
 
         .pulse-ring {
@@ -136,30 +144,43 @@
             align-items: center;
             justify-content: center;
             gap: 10px;
-            padding: 14px 32px;
-            border-radius: 8px;
+            padding: 16px 36px;
+            border-radius: 14px;
             border: none;
             background: var(--accent-blue);
             cursor: pointer;
             font-family: 'Inter', sans-serif;
-            font-size: 0.9rem;
+            font-size: 0.95rem;
             font-weight: 600;
             color: #FFFFFF;
-            transition: background 0.2s ease;
+            transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
             outline: none;
-            min-height: 48px;
+            min-height: 52px;
+            box-shadow: 0 4px 16px rgba(0, 102, 204, 0.25);
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         .record-btn:hover {
             background: var(--accent-blue-hover);
+            box-shadow: 0 6px 24px rgba(0, 102, 204, 0.35);
         }
 
         .record-btn:active {
-            opacity: 0.9;
+            transform: scale(0.97);
+            box-shadow: 0 2px 8px rgba(0, 102, 204, 0.2);
         }
 
         .recording .record-btn {
             background: var(--record-color);
+            box-shadow: 0 4px 16px rgba(220, 53, 69, 0.3);
+            animation: pulse-glow 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 4px 16px rgba(220, 53, 69, 0.3); }
+            50% { box-shadow: 0 4px 28px rgba(220, 53, 69, 0.5); }
         }
 
         .record-btn svg {
@@ -555,50 +576,97 @@
         /* Mobile Optimization and Touch Targets */
         @media (max-width: 640px) {
             body {
-                padding: 12px;
+                padding: 0;
             }
             .container {
-                padding: 24px 16px;
-                border-radius: 4px;
+                padding: 16px;
+            }
+            header {
+                padding: 12px 0;
+                margin-bottom: 20px;
             }
             h1 {
-                font-size: 1.8rem;
+                font-size: 1.4rem;
+            }
+            p.subtitle {
+                font-size: 0.68rem;
+            }
+            .calibration-status {
+                padding: 5px 10px;
+                font-size: 0.72rem;
             }
             .record-btn-container {
-                width: 120px;
-                height: 120px;
+                width: 100%;
             }
             .record-btn {
-                width: 100px;
-                height: 100px;
-            }
-            .pulse-ring {
-                width: 100px;
-                height: 100px;
+                width: 100%;
+                padding: 18px 24px;
+                border-radius: 14px;
+                font-size: 0.95rem;
+                min-height: 56px;
             }
             .text-grid {
                 grid-template-columns: 1fr;
-                gap: 16px;
+                gap: 12px;
+            }
+            .panel-header {
+                padding: 10px 12px;
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+            .panel-content-box {
+                padding: 12px;
+                font-size: 0.9rem;
             }
             .phrase-item {
                 flex-direction: column;
                 align-items: stretch;
-                padding: 16px;
-                gap: 12px;
+                padding: 14px;
+                gap: 10px;
             }
             .phrase-actions {
                 justify-content: space-between;
             }
             .calib-rec-btn {
                 flex-grow: 1;
-                padding: 10px;
+                padding: 12px;
                 font-size: 0.85rem;
-                min-height: 44px; /* comfortable thumb target */
+                min-height: 48px;
+                border-radius: 8px;
             }
             .action-btn {
                 min-height: 44px;
-                padding: 8px 16px;
-                font-size: 0.85rem;
+                padding: 8px 14px;
+                font-size: 0.82rem;
+            }
+            .calibration-panel {
+                margin-top: 20px;
+            }
+            .panel-toggle {
+                padding: 14px 16px;
+            }
+            .correction-container {
+                padding: 12px;
+            }
+            .status-text {
+                font-size: 0.72rem;
+            }
+            .alert-box {
+                font-size: 0.8rem;
+                padding: 10px 14px;
+            }
+        }
+
+        /* Extra small phones */
+        @media (max-width: 380px) {
+            .container {
+                padding: 12px;
+            }
+            h1 {
+                font-size: 1.2rem;
+            }
+            .header-left {
+                gap: 8px;
             }
         }
     </style>
@@ -609,7 +677,7 @@
         <header>
             <div class="header-left">
                 <h1>Resonate</h1>
-                <p class="subtitle">Speech-to-Text Calibration</p>
+                <p class="subtitle">Speech-to-Text</p>
             </div>
             <!-- Calibration Status -->
             <div class="calibration-status" id="calibration-status">
@@ -658,7 +726,7 @@
                 <!-- Raw Phonetic Panel -->
                 <div class="panel-card raw-panel">
                     <div class="panel-header">
-                        <span class="panel-tag">OUTPUT: PHONETIC_RAW</span>
+                        <span class="panel-tag">INPUT: PHONETIC RAW</span>
                     </div>
                     <div class="panel-content-box" id="raw-result-box">Awaiting speech input...</div>
                 </div>
@@ -1102,9 +1170,9 @@
             /**
              * Takes ANY audio blob (webm/opus, mp4/aac, ogg, etc.)
              * and converts it to 16kHz mono WAV using Web Audio API.
-             * This runs entirely in the browser â€” no server conversion needed.
+             * This runs entirely in the browser - no server conversion needed.
              */
-            const TARGET_SAMPLE_RATE = 16000; // 16kHz â€” ideal for STT
+            const TARGET_SAMPLE_RATE = 16000; // 16kHz - ideal for STT
 
             const arrayBuffer = await audioBlob.arrayBuffer();
             
@@ -1152,7 +1220,7 @@
             // Encode as WAV
             const wavBlob = encodeWAV(resampled, TARGET_SAMPLE_RATE);
             
-            console.log(`Audio normalized: ${audioBlob.type} ${(audioBlob.size/1024).toFixed(0)}KB â†’ WAV 16kHz mono ${(wavBlob.size/1024).toFixed(0)}KB`);
+            console.log(`Audio normalized: ${audioBlob.type} ${(audioBlob.size/1024).toFixed(0)}KB -> WAV 16kHz mono ${(wavBlob.size/1024).toFixed(0)}KB`);
             return wavBlob;
         }
 
@@ -1161,9 +1229,9 @@
             hideAlert();
             audioChunks = [];
 
-            // Secure Context check â€” mobile browsers BLOCK microphone on non-HTTPS
+            // Secure Context check - mobile browsers BLOCK microphone on non-HTTPS
             if (!window.isSecureContext) {
-                showAlert("âš ï¸ Microphone requires HTTPS. Please access this app via the Render URL (https://...), not http://.");
+                showAlert("Microphone requires HTTPS. Please access this app via the Render URL (https://...), not http://.");
                 return;
             }
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -1174,7 +1242,7 @@
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 
-                // Select MIME Type â€” let the browser pick whatever it natively supports.
+                // Select MIME Type - let the browser pick whatever it natively supports.
                 // We normalize to WAV later, so the recording format doesn't matter.
                 let options = { mimeType: 'audio/webm' };
                 if (!MediaRecorder.isTypeSupported(options.mimeType)) {
