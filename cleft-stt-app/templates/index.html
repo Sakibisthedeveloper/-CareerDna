@@ -203,6 +203,21 @@
             min-height: 20px;
             letter-spacing: 0.02em;
         }
+        
+        /* Optimize Mobile Audio Player */
+        audio.mobile-optimized {
+            width: 100%;
+        }
+        /* Hide timestamps, mute button, and volume controls to maximize progress bar width on mobile */
+        @media (max-width: 600px) {
+            audio.mobile-optimized::-webkit-media-controls-current-time-display,
+            audio.mobile-optimized::-webkit-media-controls-time-remaining-display,
+            audio.mobile-optimized::-webkit-media-controls-volume-slider,
+            audio.mobile-optimized::-webkit-media-controls-volume-slider-container,
+            audio.mobile-optimized::-webkit-media-controls-mute-button {
+                display: none !important;
+            }
+        }
 
         /* Audio Waveform Canvas */
         .visualizer-container {
@@ -763,7 +778,7 @@
                 <textarea id="correction-input" style="width:100%; min-height:100px; font-family:inherit; background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:16px; color:var(--text-primary); resize:vertical; outline:none; font-size:0.95rem; line-height:1.5;" placeholder="Type the correct transcription here..."></textarea>
                 
                 <div style="display: flex; gap: 10px; align-items: center; margin-top: 15px; margin-bottom: 5px;">
-                    <audio id="playback-audio" controls style="flex-grow: 1; height: 36px; outline: none; border-radius: 8px;"></audio>
+                    <audio id="playback-audio" class="mobile-optimized" controls style="flex-grow: 1; height: 36px; outline: none; border-radius: 8px;"></audio>
                     <button class="action-btn" id="delete-history-btn" style="background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.3); color: #ef4444;" title="Delete this entry from database">
                         <svg viewBox="0 0 24 24" style="width:16px; height:16px; fill:currentColor;">
                             <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zm2.46-7.12l1.41-1.41L12 12.59l2.12-2.12 1.41 1.41L13.41 14l2.12 2.12-1.41 1.41L12 15.41l-2.12 2.12-1.41-1.41L10.59 14l-2.12-2.12zM15.5 4l-1-1h-5l-1 1H5v2h14V4z"/>
